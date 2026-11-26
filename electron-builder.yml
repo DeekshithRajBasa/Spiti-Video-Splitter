@@ -9,15 +9,23 @@ files:
   - electron/main.cjs
   - electron/preload.cjs
   - electron/features.cjs
+  - electron/updater.cjs
+  - electron/update-utils.cjs
   - build/icon.png
   - package.json
   # ffmpeg-static only needs its binary at runtime, not its download helpers.
-  - "!node_modules/**"
-  - node_modules/ffmpeg-static/{index.js,package.json,LICENSE,ffmpeg,ffmpeg.exe,ffmpeg.LICENSE,ffmpeg.README}
+  - "!node_modules/ffmpeg-static/{install.js,example.js,README.md}"
 # FFmpeg must live outside the asar archive so it can be executed.
 asarUnpack:
   - node_modules/ffmpeg-static/**
 afterPack: build/afterPack.cjs
+# Where the app looks for updates. electron-builder writes this into the app (app-update.yml).
+# Point it at a public releases-only repository to update without any token; see README "Updates".
+publish:
+  provider: github
+  owner: DeekshithRajBasa
+  repo: Spiti-Video-Splitter
+  releaseType: release
 # spiti://clip?url=… opens the app and starts clipping (used by the web version).
 protocols:
   - name: Spiti Video Splitter
@@ -41,8 +49,10 @@ mac:
   # No Apple Developer certificate: afterPack applies an ad-hoc signature instead.
   identity: null
   hardenedRuntime: false
+  # The zip is what the in-app updater downloads; the dmg is for first installs.
   target:
     - target: dmg
+    - target: zip
   artifactName: Spiti-Video-Splitter-${version}-mac-${arch}.${ext}
 dmg:
   title: Spiti Video Splitter

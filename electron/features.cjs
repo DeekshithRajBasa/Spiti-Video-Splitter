@@ -424,4 +424,4 @@ function register({ ffmpeg, getWindow, allowWriteDir }) {
   })
 }
 
-module.exports = { registerSchemes, register }
+module.exports = { registerSchemes, register, getSecret }

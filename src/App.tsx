@@ -21,6 +21,8 @@ import {
   Download,
   Scissors,
   MonitorPlay,
+  ArrowDownToLine,
+  RotateCw,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { CaptionsPanel } from './components/CaptionsPanel'
@@ -31,6 +33,8 @@ import { LayoutPanel } from './components/LayoutPanel'
 import { MediaPanel } from './components/MediaPanel'
 import { Preview } from './components/Preview'
 import { RendersButton, RendersDrawer } from './components/RendersPanel'
+import { UpdateButton, UpdateSnackbar } from './components/UpdateUi'
+import { hasUpdate, updateAction, useUpdate } from './lib/updates'
 import { TemplatesPanel } from './components/TemplatesPanel'
 import { Timeline } from './components/Timeline'
 import { createProject } from './defaults'
@@ -254,6 +258,7 @@ export default function App() {
             <RailItem icon={Palette} label="Brand Kit" on={ui.rightTab === 'style'} onClick={() => store.ui({ rightTab: 'style' })} />
             <RailItem icon={AudioLines} label="Audio" on={ui.rightTab === 'audio'} onClick={() => store.ui({ rightTab: 'audio' })} />
             <div className="rail-spacer" />
+            <UpdateRailItem />
             <RailItem icon={HelpCircle} label="Help" on={help} onClick={() => setHelp(true)} />
             <RailItem icon={MonitorPlay} label="Renders" on={ui.rendersOpen} onClick={() => store.ui({ rendersOpen: !ui.rendersOpen })} />
             <RailItem icon={Settings2} label="Settings" on={!!settings} onClick={() => setSettings('ai')} />
@@ -305,6 +310,7 @@ export default function App() {
       {help && <HelpModal onClose={() => setHelp(false)} />}
       {settings && <SettingsModal initial={settings} onClose={() => setSettings(null)} />}
       <RendersDrawer />
+      <UpdateSnackbar />
     </div>
   )
 }
@@ -390,6 +396,7 @@ function TopBar({ onHelp, compact }: { onHelp: () => void; compact?: boolean }) 
           <FolderOpen size={15} /> Shortcuts
         </button>
       )}
+      <UpdateButton />
       <RendersButton compact={compact} />
       <ExportButton />
     </header>
@@ -447,12 +454,27 @@ function newProject() {
   store.update(() => createProject())
 }
 
-function RailItem({ icon: Icon, label, on, onClick }: { icon: typeof Film; label: string; on: boolean; onClick: () => void }) {
+function RailItem({ icon: Icon, label, on, onClick, badge }: { icon: typeof Film; label: string; on: boolean; onClick: () => void; badge?: boolean }) {
   return (
-    <button type="button" className={`rail-item ${on ? 'on' : ''}`} onClick={onClick}>
+    <button type="button" className={`rail-item ${on ? 'on' : ''} ${badge ? 'has-badge' : ''}`} onClick={onClick}>
       <Icon size={18} />
       <span>{label}</span>
     </button>
+  )
+}
+
+/** Bottom-left of the window: appears while an update is available, downloading or ready. */
+function UpdateRailItem() {
+  const s = useUpdate()
+  if (!desktop || !hasUpdate(s)) return null
+  return (
+    <RailItem
+      icon={s.status === 'ready' ? RotateCw : ArrowDownToLine}
+      label={s.status === 'ready' ? 'Restart' : s.status === 'downloading' ? `${Math.round(s.percent)}%` : 'Update'}
+      on={false}
+      badge
+      onClick={s.status === 'downloading' ? () => {} : updateAction}
+    />
   )
 }
 

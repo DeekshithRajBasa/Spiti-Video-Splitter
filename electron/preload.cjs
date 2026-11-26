@@ -46,6 +46,16 @@ contextBridge.exposeInMainWorld('desktop', {
   request: (req) => ipcRenderer.invoke('net:request', req),
   secretGet: (name) => ipcRenderer.invoke('secret:get', name),
   secretSet: (name, value) => ipcRenderer.invoke('secret:set', name, value),
+  updateState: () => ipcRenderer.invoke('update:state'),
+  updateCheck: () => ipcRenderer.invoke('update:check'),
+  updateDownload: () => ipcRenderer.invoke('update:download'),
+  updateInstall: () => ipcRenderer.invoke('update:install'),
+  updateSetAuto: (on) => ipcRenderer.invoke('update:setAuto', on),
+  onUpdateState: (cb) => {
+    const h = (_e, s) => cb(s)
+    ipcRenderer.on('update:state', h)
+    return () => ipcRenderer.removeListener('update:state', h)
+  },
   takeDeepLinks: () => ipcRenderer.invoke('deeplink:take'),
   onDeepLink: (cb) => {
     const h = () => cb()
