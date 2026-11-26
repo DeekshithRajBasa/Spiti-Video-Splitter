@@ -90,7 +90,7 @@ export function createProject(): Project {
     sfx: [],
     outro: { enabled: false, text: 'Follow for more', handle: '@yourchannel', duration: 2.5, color: '#7c3aed' },
     watermark: { enabled: false, text: '@yourchannel', imageId: null, position: 'tr', opacity: 0.8, size: 0.16 },
-    export: { resolution: 1080, fps: 30, bitrate: 12 },
+    export: { resolution: 1080, fps: 30, bitrate: 12, mode: 'fast' },
     tracks: {
       overlay: { hidden: false, locked: false },
       captions: { hidden: false, locked: false },

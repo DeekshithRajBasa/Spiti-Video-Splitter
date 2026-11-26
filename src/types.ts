@@ -6,6 +6,8 @@ export interface MediaItem {
   kind: MediaKind
   url: string
   file: File
+  /** Absolute path on disk (desktop app only). */
+  path: string | null
   duration: number
   width: number
   height: number
@@ -156,6 +158,8 @@ export interface ExportConfig {
   resolution: 720 | 1080 | 1440 | 2160
   fps: 24 | 30 | 60
   bitrate: number
+  /** Desktop: 'fast' renders off-screen with FFmpeg + GPU; 'realtime' records playback. */
+  mode: 'fast' | 'realtime'
 }
 
 export interface TrackFlags {

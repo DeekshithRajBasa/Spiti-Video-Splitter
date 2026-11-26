@@ -1,8 +1,10 @@
-import { Camera, Download, Film, Loader2, Plus, Trash2, X } from 'lucide-react'
-import { useState } from 'react'
+import { Camera, Download, Film, FolderOpen, Loader2, Plus, Trash2, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { desktop, desktopInfo } from '../lib/desktop'
+import { runExport, saveSnapshot } from '../lib/exportFlow'
+import { canFastExport, pickEncoder } from '../lib/fastExport'
 import { addSfx } from '../lib/actions'
 import { canvasSize, engine, pickMime } from '../lib/engine'
-import { download } from '../lib/media'
 import { fmtShort, totalDuration } from '../lib/timeline'
 import { FONTS } from '../defaults'
 import { store, useMedia, useProject, useUi } from '../store'
@@ -337,14 +339,39 @@ function MusicCurve({ volume, peak, riser, duration }: { volume: number; peak: n
   )
 }
 
+function useEncoderLabel(w: number, h: number, fps: number) {
+  const [label, setLabel] = useState<string>('Checking…')
+  useEffect(() => {
+    let alive = true
+    pickEncoder(w, h, fps, 12_000_000).then((c) => {
+      if (!alive) return
+      if (!c) setLabel('None found')
+      else if (c.mux === 'avc') setLabel(c.hardware ? `GPU H.264 (${gpuApi()})` : 'Software H.264')
+      else setLabel('VP9, then H.264 via FFmpeg')
+    })
+    return () => {
+      alive = false
+    }
+  }, [w, h, fps])
+  return label
+}
+
+function gpuApi() {
+  const pl = desktopInfo?.platform
+  return pl === 'darwin' ? 'VideoToolbox' : pl === 'win32' ? 'NVENC / AMF / QuickSync' : 'VA-API'
+}
+
 function ExportTab() {
   const p = useProject()
   const ui = useUi()
   const e = p.export
   const [w, h] = canvasSize(p, e.resolution)
-  const m = pickMime()
-  const mime = m.includes('avc1') ? 'MP4 (H.264)' : m.includes('mp4') ? 'MP4' : m ? 'WebM' : 'Not supported in this browser'
   const d = totalDuration(p.segments)
+  const fastOk = canFastExport()
+  const fast = !!desktop && e.mode === 'fast' && fastOk.ok
+  const encoder = useEncoderLabel(w, h, e.fps)
+  const m = pickMime()
+  const mime = fast ? 'MP4 (H.264 + AAC)' : m.includes('avc1') ? 'MP4 (H.264)' : m.includes('mp4') ? 'MP4' : m ? 'WebM' : 'Not supported in this browser'
   return (
     <>
       <Section title="Export">
@@ -367,6 +394,18 @@ function ExportTab() {
             onChange={(v) => up((x) => (x.export.fps = v as P['export']['fps']))}
           />
         </Field>
+        {desktop && (
+          <Field label="Engine" group>
+            <Segmented<P['export']['mode']>
+              value={e.mode}
+              options={[
+                { value: 'fast', label: 'Fast (GPU)', title: 'Decode with FFmpeg, encode on the graphics card' },
+                { value: 'realtime', label: 'Real time', title: 'Record while playing back' },
+              ]}
+              onChange={(v) => up((x) => (x.export.mode = v))}
+            />
+          </Field>
+        )}
         <Slider label="Quality (bitrate at 1080p)" value={e.bitrate} min={4} max={40} step={1} onChange={(v) => up((x) => (x.export.bitrate = v), 'br')} format={(v) => `${v} Mbps`} />
         <dl className="specs">
           <dt>Output</dt>
@@ -375,23 +414,30 @@ function ExportTab() {
           </dd>
           <dt>Format</dt>
           <dd>{mime}</dd>
+          {fast && (
+            <>
+              <dt>Encoder</dt>
+              <dd>{encoder}</dd>
+            </>
+          )}
           <dt>Length</dt>
           <dd>{fmtShort(d)}</dd>
         </dl>
         <ExportButton full />
-        <button
-          type="button"
-          className="btn full"
-          disabled={!p.slots[0].sourceId}
-          onClick={async () => {
-            const b = await engine.snapshot()
-            if (b) download(b, `${p.name}-frame.png`)
-          }}
-        >
+        <button type="button" className="btn full" disabled={!p.slots[0].sourceId} onClick={() => void saveSnapshot()}>
           <Camera size={14} /> Save this frame as PNG
         </button>
+        {ui.lastExport && desktop && (
+          <button type="button" className="btn full" onClick={() => void desktop!.reveal(ui.lastExport!)}>
+            <FolderOpen size={14} /> Show in {desktopInfo?.platform === 'darwin' ? 'Finder' : 'folder'}
+          </button>
+        )}
         <p className="hint">
-          Rendering runs on your computer in real time and uses your browser's hardware encoder. Keep this tab open until it finishes.
+          {fast
+            ? 'Renders off-screen faster than real time. You can keep editing in other apps while it runs.'
+            : desktop && e.mode === 'fast'
+              ? `${fastOk.reason}. Using real-time export instead.`
+              : 'Rendering runs on your computer in real time and uses your browser\'s hardware encoder. Keep this window visible until it finishes.'}
         </p>
       </Section>
       {ui.exporting && <ExportProgress />}
@@ -402,27 +448,10 @@ function ExportTab() {
 export function ExportButton({ full }: { full?: boolean }) {
   const p = useProject()
   const ui = useUi()
-  const [busy, setBusy] = useState(false)
-  const disabled = !p.slots[0].sourceId || busy || !!ui.exporting
+  const disabled = !p.slots[0].sourceId || !!ui.exporting
   return (
-    <button
-      type="button"
-      className={`btn dark ${full ? 'full' : ''}`}
-      disabled={disabled}
-      onClick={async () => {
-        setBusy(true)
-        try {
-          const r = await engine.export()
-          if (r) download(r.blob, `${p.name}.${r.ext}`)
-        } catch (err) {
-          alert(`Export failed: ${(err as Error).message}`)
-          store.ui({ exporting: null })
-        } finally {
-          setBusy(false)
-        }
-      }}
-    >
-      {busy ? <Loader2 size={15} className="spin" /> : full ? <Film size={15} /> : <Download size={15} />} Export
+    <button type="button" className={`btn dark ${full ? 'full' : ''}`} disabled={disabled} onClick={() => void runExport()}>
+      {ui.exporting ? <Loader2 size={15} className="spin" /> : full ? <Film size={15} /> : <Download size={15} />} Export
     </button>
   )
 }

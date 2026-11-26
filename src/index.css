@@ -1667,3 +1667,26 @@ input[type='range']::-moz-range-thumb {
   color: var(--text-2);
   text-align: right;
 }
+
+/* ---------- desktop app title bar ---------- */
+.desktop .topbar {
+  -webkit-app-region: drag;
+}
+.desktop .topbar button,
+.desktop .topbar input,
+.desktop .topbar .offline-pill {
+  -webkit-app-region: no-drag;
+}
+/* macOS: leave room for the traffic lights above the rail. */
+.platform-darwin .rail {
+  padding-top: 44px;
+  -webkit-app-region: drag;
+}
+.platform-darwin .rail button {
+  -webkit-app-region: no-drag;
+}
+/* Windows / Linux: the native min/max/close buttons sit over the top-right corner. */
+.platform-win32 .topbar,
+.platform-linux .topbar {
+  padding-right: calc(100vw - env(titlebar-area-width, calc(100vw - 140px)) - env(titlebar-area-x, 0px));
+}

@@ -15,7 +15,42 @@ Turn widescreen podcasts, live streams and gameplay into vertical clips for Shor
 - **Export**: 720p, 1080p, 2K or 4K at 24/30/60 fps. MP4 (H.264) where the browser supports it, otherwise WebM. Also save any frame as a PNG.
 - Light and dark mode, settings autosave locally, keyboard shortcuts for everything (press `?`).
 
-## Run it
+## Desktop apps (Windows & Mac)
+
+Download the installers from the repository's **Actions** tab (latest "Desktop apps" run → Artifacts) or from **Releases** once a version tag is pushed.
+
+| Platform | File |
+| --- | --- |
+| Windows 10/11 (64-bit) | `Spiti-Video-Splitter-<version>-Windows-Setup.exe` |
+| Mac with Apple Silicon (M1–M4) | `Spiti-Video-Splitter-<version>-mac-arm64.dmg` |
+| Intel Mac | `Spiti-Video-Splitter-<version>-mac-x64.dmg` |
+
+The desktop app adds:
+
+- **Fast export**: FFmpeg decodes your footage frame by frame, the graphics card encodes H.264 (Media Foundation on Windows, so NVENC / AMD AMF / Intel QuickSync; VideoToolbox on Mac), and FFmpeg mixes the voice, music riser and sound effects into an MP4 with AAC audio. It runs faster than real time, is frame-accurate at every cut, and keeps going while the window is in the background. Real-time export is still there as a fallback.
+- Native save dialogs, **Show in Finder / Explorer** after export, a proper menu bar (File → Import, Export, Save Frame; Edit → Undo, Redo, Split) and a native title bar.
+- Fully offline: fonts and FFmpeg ship inside the app.
+
+**First launch (the apps are not code-signed yet):**
+
+- **Windows**: SmartScreen says "Windows protected your PC". Click **More info → Run anyway**.
+- **Mac**: open the `.dmg`, drag the app to Applications, then **right-click the app → Open → Open**. If macOS says the app "is damaged", run `xattr -cr "/Applications/Spiti Video Splitter.app"` in Terminal once.
+
+To remove these warnings, add a code-signing certificate: an Apple Developer ID (set `CSC_LINK` / `CSC_KEY_PASSWORD`, plus `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD` and `APPLE_TEAM_ID` to notarize), and a Windows code-signing certificate (`WIN_CSC_LINK` / `WIN_CSC_KEY_PASSWORD`). Add them as repository secrets and pass them to the build steps.
+
+### Build the desktop apps yourself
+
+```bash
+npm install
+npm run desktop:dev   # run the desktop app against the Vite dev server
+npm run desktop       # build and run the desktop app
+npm run dist:win      # Windows installer → release/  (run on Windows)
+npm run dist:mac      # macOS .dmg → release/       (run on a Mac)
+```
+
+Set `SPITI_DEBUG=1` to log the FFmpeg commands the desktop app runs.
+
+## Run it in the browser
 
 ```bash
 npm install
@@ -23,7 +58,7 @@ npm run dev      # http://localhost:5173
 npm run build    # static files in dist/
 ```
 
-Chrome or Edge works best: they have hardware H.264 recording. Export renders in real time, so keep the tab visible while it runs.
+Chrome or Edge works best: they have hardware H.264 recording. In the browser, export renders in real time, so keep the tab visible while it runs.
 
 ## Shortcuts
 
@@ -42,4 +77,6 @@ Chrome or Edge works best: they have hardware H.264 recording. Export renders in
 
 ## How it's built
 
-React + TypeScript + Vite. A single canvas renderer (`src/lib/render.ts`) draws every frame for both the preview and the export. The engine (`src/lib/engine.ts`) keeps playback in sync across cuts, mixes audio through Web Audio, and records the export with `canvas.captureStream()` and `MediaRecorder`. Fonts are bundled, so the app works offline.
+React + TypeScript + Vite, packaged for desktop with Electron and electron-builder. A single canvas renderer (`src/lib/render.ts`) draws every frame for both the preview and the export. The engine (`src/lib/engine.ts`) keeps playback in sync across cuts, mixes audio through Web Audio, and records the export with `canvas.captureStream()` and `MediaRecorder`. On desktop, `src/lib/fastExport.ts` instead pulls frames from FFmpeg (`electron/main.cjs`), encodes them with WebCodecs and muxes with `mp4-muxer`, then FFmpeg mixes the audio. Fonts are bundled, so the app works offline.
+
+FFmpeg is bundled via `ffmpeg-static` (GPL-3.0 build). If you distribute the app, include its licence and offer the corresponding source.

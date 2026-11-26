@@ -1,7 +1,7 @@
 import type { Crop, MediaItem, Project, TemplateId } from '../types'
 import { cueWords, wrapWords, type Word } from './captions'
 
-export type Drawable = HTMLVideoElement | HTMLImageElement
+export type Drawable = HTMLVideoElement | HTMLImageElement | ImageBitmap
 
 export interface RenderInput {
   project: Project
@@ -25,13 +25,15 @@ export const FRAME_TEMPLATES: TemplateId[] = ['x-light', 'x-dark', 'code', 'quot
 
 function srcSize(s: Drawable): [number, number] {
   if (s instanceof HTMLVideoElement) return [s.videoWidth, s.videoHeight]
-  return [s.naturalWidth, s.naturalHeight]
+  if (s instanceof HTMLImageElement) return [s.naturalWidth, s.naturalHeight]
+  return [s.width, s.height]
 }
 
 function ready(s: Drawable | null): s is Drawable {
   if (!s) return false
   if (s instanceof HTMLVideoElement) return s.readyState >= 2 && s.videoWidth > 0
-  return s.complete && s.naturalWidth > 0
+  if (s instanceof HTMLImageElement) return s.complete && s.naturalWidth > 0
+  return s.width > 0
 }
 
 /** Source-space rect for a crop at the given output aspect. */

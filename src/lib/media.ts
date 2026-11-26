@@ -1,6 +1,7 @@
 import { uid } from '../defaults'
 import { store } from '../store'
 import type { MediaItem, MediaKind } from '../types'
+import { desktop } from './desktop'
 
 function kindOf(f: File): MediaKind | null {
   if (f.type.startsWith('video/') || /\.(mp4|mov|mkv|webm|avi|m4v)$/i.test(f.name)) return 'video'
@@ -82,7 +83,8 @@ export async function importFile(file: File): Promise<MediaItem | null> {
   if (!kind) return null
   const url = URL.createObjectURL(file)
   const meta = await loadMeta(url, kind)
-  const item: MediaItem = { id: uid(), name: file.name, kind, url, file, thumbs: [], waveform: [], ...meta }
+  const path = desktop?.pathForFile(file) ?? null
+  const item: MediaItem = { id: uid(), name: file.name, kind, url, file, path, thumbs: [], waveform: [], ...meta }
   if (kind === 'image') item.thumbs = [url]
   store.addMedia(item)
   if (kind === 'video') {

@@ -2,6 +2,7 @@ import { CANVAS_RATIOS } from '../defaults'
 import { store } from '../store'
 import type { MediaItem, Project } from '../types'
 import { renderFrame, type Drawable } from './render'
+import { cancelFastExport } from './fastExport'
 import { outToSource, totalDuration } from './timeline'
 
 type El = HTMLVideoElement | HTMLImageElement | HTMLAudioElement
@@ -467,6 +468,7 @@ class Engine {
   }
 
   cancelExport() {
+    cancelFastExport()
     if (!this.job) return
     this.job.cancelled = true
     this.pause()

@@ -19,7 +19,7 @@ import {
   PanelsTopLeft,
   Sparkles,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CaptionsPanel } from './components/CaptionsPanel'
 import { ExportButton, ExportProgress, Inspector } from './components/Inspector'
 import { LayoutPanel } from './components/LayoutPanel'
@@ -36,7 +36,9 @@ import {
   setOutPoint,
   splitAtPlayhead,
 } from './lib/actions'
+import { desktop, desktopReady } from './lib/desktop'
 import { engine } from './lib/engine'
+import { runExport, saveSnapshot } from './lib/exportFlow'
 import { store, useProject, useUi, type UiState } from './store'
 
 const LEFT_TABS: { id: UiState['leftTab']; label: string; icon: typeof Film }[] = [
@@ -73,9 +75,56 @@ export default function App() {
     return () => clearInterval(i)
   }, [])
 
+  const importRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
     document.documentElement.dataset.theme = ui.theme
+    void desktop?.setTitlebarTheme(ui.theme === 'dark')
   }, [ui.theme])
+
+  // Desktop app: platform classes for the title bar, and native menu commands.
+  useEffect(() => {
+    if (!desktop) return
+    void desktopReady.then((info) => {
+      if (info) document.documentElement.classList.add('desktop', `platform-${info.platform}`)
+    })
+    return desktop.onMenu((cmd) => {
+      const el = document.activeElement as HTMLElement | null
+      const typing = !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')
+      switch (cmd) {
+        case 'import':
+          importRef.current?.click()
+          break
+        case 'export':
+          store.ui({ rightTab: 'export' })
+          void runExport()
+          break
+        case 'snapshot':
+          void saveSnapshot()
+          break
+        case 'new':
+          newProject()
+          break
+        case 'undo':
+          if (typing) document.execCommand('undo')
+          else store.undo()
+          break
+        case 'redo':
+          if (typing) document.execCommand('redo')
+          else store.redo()
+          break
+        case 'split':
+          if (!typing) splitAtPlayhead()
+          break
+        case 'theme':
+          store.ui({ theme: store.get().ui.theme === 'dark' ? 'light' : 'dark' })
+          break
+        case 'help':
+          setHelp(true)
+          break
+      }
+    })
+  }, [])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -150,6 +199,17 @@ export default function App() {
         void importFiles(e.dataTransfer.files)
       }}
     >
+      <input
+        ref={importRef}
+        type="file"
+        multiple
+        hidden
+        accept="video/*,audio/*,image/*,.srt,.vtt,.ass,.ssa,.mkv,.mov"
+        onChange={(e) => {
+          if (e.target.files) void importFiles(e.target.files)
+          e.target.value = ''
+        }}
+      />
       <nav className="rail" aria-label="Main">
         <div className="logo" aria-label="Spiti">
           <svg viewBox="0 0 32 32" width="34" height="34">
@@ -181,11 +241,7 @@ export default function App() {
             className="icon-btn"
             title="New project"
             aria-label="New project"
-            onClick={() => {
-              if (!confirm('Start a new project? Your current edit settings will be cleared.')) return
-              engine.pause()
-              store.update(() => createProject())
-            }}
+            onClick={newProject}
           >
             <ArrowLeft size={16} />
           </button>
@@ -274,6 +330,12 @@ export default function App() {
       {help && <HelpModal onClose={() => setHelp(false)} />}
     </div>
   )
+}
+
+function newProject() {
+  if (!confirm('Start a new project? Your current edit settings will be cleared.')) return
+  engine.pause()
+  store.update(() => createProject())
 }
 
 function RailItem({ icon: Icon, label, on, onClick }: { icon: typeof Film; label: string; on: boolean; onClick: () => void }) {

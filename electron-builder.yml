@@ -1,0 +1,49 @@
+appId: com.spiti.videosplitter
+productName: Spiti Video Splitter
+copyright: Copyright © 2026 Spiti
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**
+  - electron/main.cjs
+  - electron/preload.cjs
+  - build/icon.png
+  - package.json
+  # ffmpeg-static only needs its binary at runtime, not its download helpers.
+  - "!node_modules/**"
+  - node_modules/ffmpeg-static/{index.js,package.json,LICENSE,ffmpeg,ffmpeg.exe,ffmpeg.LICENSE,ffmpeg.README}
+# FFmpeg must live outside the asar archive so it can be executed.
+asarUnpack:
+  - node_modules/ffmpeg-static/**
+afterPack: build/afterPack.cjs
+
+win:
+  icon: build/icon.png
+  target:
+    - target: nsis
+      arch: [x64]
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  artifactName: Spiti-Video-Splitter-${version}-Windows-Setup.${ext}
+
+mac:
+  icon: build/icon.png
+  category: public.app-category.video
+  # No Apple Developer certificate: afterPack applies an ad-hoc signature instead.
+  identity: null
+  hardenedRuntime: false
+  target:
+    - target: dmg
+  artifactName: Spiti-Video-Splitter-${version}-mac-${arch}.${ext}
+dmg:
+  title: Spiti Video Splitter
+
+linux:
+  icon: build/icon.png
+  category: AudioVideo
+  target: [AppImage]
+  artifactName: Spiti-Video-Splitter-${version}-linux-${arch}.${ext}

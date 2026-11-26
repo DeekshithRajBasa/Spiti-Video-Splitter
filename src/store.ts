@@ -22,6 +22,7 @@ export interface UiState {
   outPoint: number | null
   lastSaved: number
   exporting: null | { progress: number; status: string }
+  lastExport: string | null
 }
 
 interface State {
@@ -82,6 +83,7 @@ let state: State = {
     outPoint: null,
     lastSaved: Date.now(),
     exporting: null,
+    lastExport: null,
   },
 }
 
