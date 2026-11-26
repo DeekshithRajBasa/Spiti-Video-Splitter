@@ -396,7 +396,10 @@ function register({ ffmpeg, getWindow, allowWriteDir }) {
     return { file, url: mediaUrl(file), name: path.basename(file), size: fs.statSync(file).size }
   })
   ipcMain.handle('link:stop', (_e, id) => stopDownload(id))
-  ipcMain.handle('media:url', (_e, file) => mediaUrl(file))
+  ipcMain.handle('media:url', (_e, file) => {
+    if (typeof file !== 'string' || !path.isAbsolute(file) || !MIME[path.extname(file).toLowerCase()]) throw new Error('Not a media file')
+    return mediaUrl(file)
+  })
   ipcMain.handle('audio:pcm', (_e, opts) => pcm(ffmpeg, opts))
   ipcMain.handle('net:request', (_e, req) => httpRequest(req))
   ipcMain.handle('secret:get', (_e, name) => getSecret(name))

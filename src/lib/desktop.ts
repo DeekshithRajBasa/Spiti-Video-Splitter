@@ -24,6 +24,9 @@ export interface DesktopBridge {
   mux(job: MuxJob): Promise<void>
   onMuxProgress(cb: (p: number) => void): () => void
   reveal(path: string): Promise<void>
+  fileStat(path: string): Promise<{ exists: boolean; size: number }>
+  /** Opens the file in the default video player. Resolves to an error message, or '' on success. */
+  openVideo(path: string): Promise<string>
   setTitlebarTheme(dark: boolean): Promise<void>
   onMenu(cb: (cmd: string) => void): () => void
   linkEnsure(): Promise<string>

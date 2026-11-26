@@ -38,6 +38,7 @@ Long VODs: set In/Out first to transcribe only part of the video.
 - **Edit**: In/Out points, split, delete, ripple cut, trim segment edges, undo/redo. The kept pieces play and export back to back.
 - **Brand**: animated "Follow for more" outro card and a logo or text watermark.
 - **Export**: 720p, 1080p, 2K or 4K at 24/30/60 fps. MP4 (H.264) where the browser supports it, otherwise WebM. Also save any frame as a PNG.
+- **Renders panel**: every video you export appears in a panel on the right (open it from the top bar or the left rail). Play it right there, see its size and resolution, **Show in Finder/Explorer**, open it in your video player, copy its path, or remove it from the list. The desktop app remembers your renders across restarts and flags files you've since moved or deleted; the web version keeps the last 8 for the session. Export all shows the whole batch together when it finishes.
 - Light and dark mode, settings autosave locally, keyboard shortcuts for everything (press `?`).
 
 ## Web and mobile

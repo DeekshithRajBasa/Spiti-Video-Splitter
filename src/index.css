@@ -2302,3 +2302,251 @@ a.link.small {
 .handoff a.btn {
   text-decoration: none;
 }
+
+/* ---------- renders panel (right side) ---------- */
+.renders-btn {
+  position: relative;
+}
+.renders-btn.on {
+  background: var(--card-3);
+}
+.renders-btn .count {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 99px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.renders {
+  position: fixed;
+  top: 72px;
+  right: 10px;
+  bottom: 10px;
+  width: min(430px, calc(100vw - 20px));
+  z-index: 61;
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+  animation: renders-in 0.22s ease-out;
+}
+@keyframes renders-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .renders {
+    animation: none;
+  }
+}
+/* Wide windows: dock the panel beside the editor so nothing is covered. */
+@media (min-width: 1400px) {
+  .renders {
+    position: relative;
+    top: auto;
+    right: auto;
+    bottom: auto;
+    width: 400px;
+    flex: none;
+    margin: 10px 10px 10px 0;
+    z-index: 5;
+    box-shadow: var(--shadow);
+  }
+}
+.renders-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 12px 10px 16px;
+  border-bottom: 1px solid var(--line);
+  flex: none;
+}
+.renders-head h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.renders-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  padding: 30px;
+  color: var(--text-3);
+}
+.renders-empty strong {
+  color: var(--text);
+}
+.renders-empty span {
+  font-size: 12.5px;
+  line-height: 1.5;
+  max-width: 260px;
+}
+.renders-player {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: none;
+  border-bottom: 1px solid var(--line);
+}
+.player-frame {
+  align-self: center;
+  max-height: min(46vh, 520px);
+  max-width: 100%;
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+}
+.player-frame video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+.renders-missing {
+  margin: auto;
+  padding: 30px 16px;
+  color: #fff;
+  opacity: 0.75;
+  font-size: 13px;
+  text-align: center;
+}
+.player-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.player-info strong {
+  font-size: 13.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.player-info span {
+  font-size: 11.5px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+.player-info .path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+}
+.renders-player .btn-row .btn {
+  flex: none;
+  text-decoration: none;
+}
+.renders-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  scrollbar-width: thin;
+}
+.render-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  text-align: left;
+  width: 100%;
+}
+.render-row:hover {
+  background: var(--card-2);
+}
+.render-row.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.render-row.missing {
+  opacity: 0.55;
+}
+.render-thumb {
+  position: relative;
+  flex: none;
+  height: 62px;
+  max-width: 110px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--card-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-3);
+}
+.render-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.render-thumb em {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  font-style: normal;
+  font-size: 10px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 5px;
+  padding: 1px 5px;
+  font-variant-numeric: tabular-nums;
+}
+.render-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.render-meta strong {
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.render-meta span {
+  font-size: 11px;
+  color: var(--text-3);
+}
+@media (max-width: 860px) {
+  .renders {
+    inset: 0;
+    width: auto;
+    border-radius: 0;
+    border: 0;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    animation: none;
+  }
+  .player-frame {
+    max-height: 40dvh;
+  }
+}

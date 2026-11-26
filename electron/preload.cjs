@@ -26,6 +26,8 @@ contextBridge.exposeInMainWorld('desktop', {
     return () => ipcRenderer.removeListener('mux:progress', h)
   },
   reveal: (path) => ipcRenderer.invoke('shell:reveal', path),
+  fileStat: (path) => ipcRenderer.invoke('file:stat', path),
+  openVideo: (path) => ipcRenderer.invoke('shell:open', path),
   setTitlebarTheme: (dark) => ipcRenderer.invoke('titlebar:theme', dark),
   linkEnsure: () => ipcRenderer.invoke('link:ensure'),
   linkInfo: (url) => ipcRenderer.invoke('link:info', url),
