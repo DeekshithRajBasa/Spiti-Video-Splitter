@@ -67,76 +67,127 @@ function persist() {
   }
 }
 
-/** A small preview image from the video (about one third in). */
-function makeThumb(url: string): Promise<string> {
+interface Probe {
+  thumb: string
+  duration: number
+  width: number
+  height: number
+}
+
+/** Read a video's real length and size, and grab a preview image about a third of the way in. */
+function probe(url: string): Promise<Probe> {
+  const empty: Probe = { thumb: '', duration: 0, width: 0, height: 0 }
+  if (!url) return Promise.resolve(empty)
   return new Promise((resolve) => {
     const v = document.createElement('video')
     v.muted = true
     v.preload = 'auto'
     v.crossOrigin = 'anonymous'
-    const done = (r: string) => {
+    let meta = empty
+    const done = (r: Probe) => {
+      clearTimeout(timer)
       v.removeAttribute('src')
       v.load()
       resolve(r)
     }
-    const timer = setTimeout(() => done(''), 8000)
-    v.onerror = () => {
-      clearTimeout(timer)
-      done('')
-    }
+    const timer = setTimeout(() => done(meta), 8000)
+    v.onerror = () => done(meta)
     v.onloadeddata = () => {
-      v.currentTime = Math.min(1.5, Math.max(0, (v.duration || 3) / 3))
+      meta = { thumb: '', duration: isFinite(v.duration) ? v.duration : 0, width: v.videoWidth, height: v.videoHeight }
+      v.currentTime = Math.min(1.5, Math.max(0, (meta.duration || 3) / 3))
     }
     v.onseeked = () => {
-      clearTimeout(timer)
       try {
         const h = 240
         const c = document.createElement('canvas')
         c.height = h
         c.width = Math.max(1, Math.round((h * v.videoWidth) / v.videoHeight))
         c.getContext('2d')!.drawImage(v, 0, 0, c.width, c.height)
-        done(c.toDataURL('image/jpeg', 0.7))
+        done({ ...meta, thumb: c.toDataURL('image/jpeg', 0.7) })
       } catch {
-        done('')
+        done(meta)
       }
     }
     v.src = url
   })
 }
 
-/** Record a finished export. Pass the file's `path` (desktop) or its `blob` (web). */
+/**
+ * Record a finished export. Pass the file's `path` (desktop) or its `blob` (web).
+ * Never throws: the video is already saved, so a problem here must not lose it from the list.
+ */
 export async function addRender(o: { name: string; ext: string; path?: string | null; blob?: Blob; title?: string; select?: boolean }) {
-  const p = store.get().project
-  const [width, height] = canvasSize(p, p.export.resolution)
-  const duration = totalDuration(p.segments)
-  let url = ''
-  let size = o.blob?.size ?? 0
-  if (o.path && desktop) {
-    url = await desktop.mediaUrl(o.path)
-    if (!size) size = (await desktop.fileStat(o.path)).size
-  } else if (o.blob) url = URL.createObjectURL(o.blob)
-  else return
-  const item: RenderItem = {
-    id: uid(),
-    name: o.name,
-    title: o.title || o.name,
-    path: o.path ?? null,
-    url,
-    thumb: await makeThumb(url),
-    duration,
-    width,
-    height,
-    size,
-    ext: o.ext,
-    createdAt: Date.now(),
+  try {
+    const p = store.get().project
+    const [w, h] = canvasSize(p, p.export.resolution)
+    let url = ''
+    let size = o.blob?.size ?? 0
+    if (o.path && desktop) {
+      url = await desktop.mediaUrl(o.path).catch(() => '')
+      if (!size) size = (await desktop.fileStat(o.path).catch(() => ({ size: 0 }))).size
+      if (!url && o.blob) url = URL.createObjectURL(o.blob)
+    } else if (o.blob) url = URL.createObjectURL(o.blob)
+    else return
+    const info = await probe(url)
+    const item: RenderItem = {
+      id: uid(),
+      name: o.name,
+      title: o.title || o.name,
+      path: o.path ?? null,
+      url,
+      thumb: info.thumb,
+      duration: info.duration || totalDuration(p.segments),
+      width: info.width || w,
+      height: info.height || h,
+      size,
+      ext: o.ext,
+      createdAt: Date.now(),
+      missing: !url,
+    }
+    // Re-exporting to the same file replaces its old entry.
+    let items = [item, ...state.items.filter((i) => !(item.path && i.path === item.path))]
+    if (!desktop) {
+      for (const old of items.slice(MAX_WEB)) URL.revokeObjectURL(old.url)
+      items = items.slice(0, MAX_WEB)
+    }
+    set({ items, selectedId: o.select === false ? state.selectedId : item.id })
+    persist()
+  } catch (e) {
+    console.warn('Could not add to Renders', e)
   }
-  let items = [item, ...state.items]
-  if (!desktop) {
-    for (const old of items.slice(MAX_WEB)) URL.revokeObjectURL(old.url)
-    items = items.slice(0, MAX_WEB)
+}
+
+/** Desktop: add videos you already have (e.g. exports from before the Renders panel existed). */
+export async function addExistingRenders() {
+  if (!desktop) return 0
+  const files = (await desktop.openMediaDialog()).filter((f) => /\.(mp4|mov|webm|mkv|m4v)$/i.test(f.name))
+  let added = 0
+  for (const f of files) {
+    const existing = state.items.find((i) => i.path === f.file)
+    if (existing) {
+      set({ selectedId: existing.id })
+      continue
+    }
+    const info = await probe(f.url)
+    const item: RenderItem = {
+      id: uid(),
+      name: f.name.replace(/\.[^.]+$/, ''),
+      title: f.name.replace(/\.[^.]+$/, ''),
+      path: f.file,
+      url: f.url,
+      thumb: info.thumb,
+      duration: info.duration,
+      width: info.width,
+      height: info.height,
+      size: f.size,
+      ext: (f.name.split('.').pop() || 'mp4').toLowerCase(),
+      createdAt: Date.now(),
+    }
+    set({ items: [item, ...state.items], selectedId: item.id })
+    added++
   }
-  set({ items, selectedId: o.select === false ? state.selectedId : item.id })
   persist()
+  return added
 }
 
 export function selectRender(id: string | null) {

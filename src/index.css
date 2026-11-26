@@ -2367,6 +2367,11 @@ a.link.small {
     z-index: 5;
     box-shadow: var(--shadow);
   }
+  /* Windows/Linux draw minimize/maximize/close over the top 62 px: start below them. */
+  .platform-win32 .renders,
+  .platform-linux .renders {
+    margin-top: 72px;
+  }
 }
 .renders-head {
   display: flex;
