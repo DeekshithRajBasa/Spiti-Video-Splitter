@@ -40,24 +40,16 @@ The web version runs on desktop and mobile browsers. On phones the editor switch
 
 The web version deploys to Cloudflare Pages (free plan is enough; works with private repos). Cloudflare serves `public/_headers`, which makes the page cross-origin isolated so on-device captions use every CPU core.
 
-**Option A: GitHub Actions** (already set up in `.github/workflows/cloudflare.yml`)
-
-1. In Cloudflare, create an API token with the **Cloudflare Pages: Edit** permission (My Profile → API Tokens → Create Token → Custom token).
-2. Copy your **Account ID** (Workers & Pages overview, right sidebar).
-3. In GitHub → Settings → Secrets and variables → Actions, add the secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
-4. Push to `main` (or run the **Web app (Cloudflare Pages)** workflow). The site goes live at `https://spiti-video-splitter.pages.dev`. Set the repository variable `CLOUDFLARE_PROJECT` to use a different project name.
-
-**Option B: Cloudflare's Git integration** (no secrets in GitHub)
-
-Workers & Pages → Create → Pages → Connect to Git → pick this repository, then set:
+Set it up once in the Cloudflare dashboard: **Workers & Pages → Create → Pages → Connect to Git**, pick this repository, then set:
 
 | Setting | Value |
 | --- | --- |
+| Production branch | `main` |
 | Build command | `npm run build:cloudflare` |
 | Build output directory | `dist` |
 | Environment variable | `NODE_VERSION` = `22` |
 
-Every branch then gets its own preview URL. If you use this option, delete `.github/workflows/cloudflare.yml` so the site isn't deployed twice.
+Cloudflare then rebuilds on every push: `main` goes to production (`https://<project>.pages.dev`), and every other branch gets its own preview URL.
 
 Add a custom domain under the project's **Custom domains** tab.
 
