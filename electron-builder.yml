@@ -18,6 +18,10 @@ files:
 asarUnpack:
   - node_modules/ffmpeg-static/**
 afterPack: build/afterPack.cjs
+# spiti://clip?url=… opens the app and starts clipping (used by the web version).
+protocols:
+  - name: Spiti Video Splitter
+    schemes: [spiti]
 
 win:
   icon: build/icon.png

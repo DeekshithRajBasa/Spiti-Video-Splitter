@@ -44,6 +44,12 @@ contextBridge.exposeInMainWorld('desktop', {
   request: (req) => ipcRenderer.invoke('net:request', req),
   secretGet: (name) => ipcRenderer.invoke('secret:get', name),
   secretSet: (name, value) => ipcRenderer.invoke('secret:set', name, value),
+  takeDeepLinks: () => ipcRenderer.invoke('deeplink:take'),
+  onDeepLink: (cb) => {
+    const h = () => cb()
+    ipcRenderer.on('deeplink', h)
+    return () => ipcRenderer.removeListener('deeplink', h)
+  },
   onMenu: (cb) => {
     const h = (_e, cmd) => cb(cmd)
     ipcRenderer.on('menu', h)

@@ -375,6 +375,49 @@ function registerIpc() {
 
 // Must run before the app is ready.
 features.registerSchemes()
+
+/* ---------------- spiti:// links ----------------
+ * The web app hands links to the desktop app with spiti://clip?url=<video link>.
+ * The renderer takes pending links once it's ready, so cold starts work too.
+ */
+const pendingLinks = []
+function handleDeepLink(raw) {
+  try {
+    const u = new URL(raw)
+    if (u.protocol !== 'spiti:') return
+    const link = u.searchParams.get('url')
+    if (!link || !/^https?:\/\//i.test(link)) return
+    pendingLinks.push(link)
+    if (win) {
+      if (win.isMinimized()) win.restore()
+      win.focus()
+      win.webContents.send('deeplink')
+    }
+  } catch {
+    /* malformed link */
+  }
+}
+const linkFromArgv = (argv) => argv.find((a) => a.startsWith('spiti://'))
+
+if (!app.requestSingleInstanceLock()) app.quit()
+else {
+  app.on('second-instance', (_e, argv) => {
+    const l = linkFromArgv(argv)
+    if (l) handleDeepLink(l)
+    else if (win) win.focus()
+  })
+}
+app.on('open-url', (e, url) => {
+  e.preventDefault()
+  handleDeepLink(url)
+})
+if (process.defaultApp && process.argv.length >= 2) app.setAsDefaultProtocolClient('spiti', process.execPath, [path.resolve(process.argv[1])])
+else app.setAsDefaultProtocolClient('spiti')
+{
+  const l = linkFromArgv(process.argv)
+  if (l) handleDeepLink(l)
+}
+ipcMain.handle('deeplink:take', () => pendingLinks.splice(0))
 // Multi-threaded WebAssembly makes on-device Whisper several times faster.
 app.commandLine.appendSwitch('enable-features', 'SharedArrayBuffer')
 

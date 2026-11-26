@@ -1,0 +1,21 @@
+# Run the link server:  cd server && docker compose up -d
+# Then in the web app: Settings → App → Link server URL = http://localhost:8787 (or your server's address).
+services:
+  link-server:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    environment:
+      # Required: a long random secret. Enter the same value in Settings → App.
+      ACCESS_TOKEN: change-me-to-a-long-random-string
+      # Your web app's address (comma-separated for several).
+      ALLOWED_ORIGINS: https://spiti-video-splitter.pages.dev,http://localhost:5173
+      MAX_HEIGHT: "1080"
+      MAX_DURATION_MINUTES: "240"
+      MAX_LIVE_MINUTES: "120"
+      FILE_TTL_MINUTES: "60"
+      # Optional: a cookies.txt exported from your browser, for videos that need sign-in.
+      # COOKIES_FILE: /cookies/cookies.txt
+    # volumes:
+    #   - ./cookies:/cookies:ro

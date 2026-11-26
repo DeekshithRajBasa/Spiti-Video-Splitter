@@ -2282,3 +2282,23 @@ a.link.small {
     width: auto;
   }
 }
+
+/* ---------- web → desktop handoff ---------- */
+.handoff {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card-2);
+}
+.handoff p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-2);
+  line-height: 1.45;
+}
+.handoff a.btn {
+  text-decoration: none;
+}
