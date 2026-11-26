@@ -9,6 +9,7 @@ const os = require('node:os')
 const path = require('node:path')
 
 const features = require('./features.cjs')
+const updater = require('./updater.cjs')
 
 const isMac = process.platform === 'darwin'
 const DEV_URL = process.env.VITE_DEV_SERVER_URL
@@ -436,6 +437,7 @@ app.commandLine.appendSwitch('enable-features', 'SharedArrayBuffer')
 
 app.whenReady().then(() => {
   registerIpc()
+  updater.register({ getWindow: () => win })
   features.register({ ffmpeg: FFMPEG, getWindow: () => win, allowWriteDir: (d) => writableDirs.add(path.resolve(d)) })
   buildMenu()
   createWindow()

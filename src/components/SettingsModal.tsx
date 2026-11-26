@@ -6,6 +6,7 @@ import { cachedModels, deleteCachedModel, detectGpu, LANGUAGES, WHISPER_MODELS }
 import { desktop } from '../lib/desktop'
 import { testLinkServer } from '../lib/links'
 import { store, useUi } from '../store'
+import { UpdatesSettings } from './UpdateUi'
 import { Field, Section, Segmented } from './ui'
 
 type Tab = 'speech' | 'ai' | 'app'
@@ -374,9 +375,12 @@ function AppSettings() {
         />
       </Field>
       {desktop ? (
-        <p className="hint">
-          Links are downloaded with yt-dlp, which installs itself on first use and updates daily. Files are saved to Videos → Spiti Downloads.
-        </p>
+        <>
+          <p className="hint">
+            Links are downloaded with yt-dlp, which installs itself on first use and updates daily. Files are saved to Videos → Spiti Downloads.
+          </p>
+          <UpdatesSettings />
+        </>
       ) : (
         <Section title="Link server (YouTube, Twitch… in the browser)">
           <p className="hint">

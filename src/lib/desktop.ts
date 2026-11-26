@@ -42,8 +42,36 @@ export interface DesktopBridge {
   request(r: { url: string; method?: string; headers?: Record<string, string>; body?: string; timeoutMs?: number }): Promise<{ status: number; ok: boolean; text: string }>
   secretGet(name: string): Promise<string>
   secretSet(name: string, value: string): Promise<void>
+  updateState(): Promise<UpdateState>
+  updateCheck(): Promise<UpdateState>
+  updateDownload(): Promise<unknown>
+  updateInstall(): Promise<boolean>
+  updateSetAuto(on: boolean): Promise<void>
+  onUpdateState(cb: (s: UpdateState) => void): () => void
   takeDeepLinks(): Promise<string[]>
   onDeepLink(cb: () => void): () => void
+}
+
+export interface UpdateState {
+  supported: boolean
+  reason: string
+  platform: string
+  current: string
+  status: 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'none' | 'error'
+  version: string
+  notes: string
+  url: string
+  percent: number
+  speed: number
+  transferred: number
+  total: number
+  error: string
+  needsToken: boolean
+  hasToken: boolean
+  /** macOS: the app can't replace itself here (e.g. running from the disk image). */
+  manualInstall: boolean
+  lastChecked: number
+  autoDownload: boolean
 }
 
 export interface DiskFile {

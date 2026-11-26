@@ -41,6 +41,28 @@ Long VODs: set In/Out first to transcribe only part of the video.
 - **Renders panel**: every video you export appears in a panel on the right (open it from the top bar or the left rail). Play it right there, see its size and resolution, **Show in Finder/Explorer**, open it in your video player, copy its path, or remove it from the list. The desktop app remembers your renders across restarts and flags files you've since moved or deleted; the web version keeps the last 8 for the session. Export all shows the whole batch together when it finishes.
 - Light and dark mode, settings autosave locally, keyboard shortcuts for everything (press `?`).
 
+## Updates (desktop apps)
+
+The desktop app checks for a new version a few seconds after it starts and every 6 hours. When one is found, a small snackbar appears at the bottom-left ("Version 1.3.0 is available / ready"), a small **Update** button appears in the top-right corner, and a dot appears on the bottom-left rail. Updates download in the background; click **Restart to update** (or just quit the app) and it installs and reopens on the new version. Turn background downloads off, check manually, or see the current version in **Settings → App → Updates**.
+
+| Platform | How it updates |
+| --- | --- |
+| Windows | `electron-updater`: checksum-verified, only the changed parts are downloaded, silent install, then the app reopens. |
+| macOS | Apps without an Apple Developer certificate can't use macOS's own updater, so the app downloads the release `.zip`, verifies its SHA-256, and swaps itself into place after you quit (the old copy is restored if anything goes wrong). It needs the app to be in a folder you can write to, normally Applications; from a disk image it offers a manual download instead. |
+| Linux | `electron-updater` for the AppImage build. |
+
+The first updater-enabled version has to be installed by hand once; after that, updates are in-app.
+
+### Where updates come from
+
+The app reads the public GitHub releases of this repository (the `publish` block in `electron-builder.yml`), so no token or extra setup is needed.
+
+If you ever make the repository private again, the app can still update: either paste a fine-grained, read-only **Contents** token in **Settings → App → Updates → Releases are private?** (stored in the system keychain), or publish releases to a separate public releases-only repo by setting `publish.repo` in `electron-builder.yml`, the repository variable `RELEASES_REPO` (`owner/name`) and the secret `RELEASES_TOKEN` (Contents: read and write on that repo). Installed apps remember where to look, so make that change before shipping the version people install.
+
+### Releasing an update
+
+Bump `version` in `package.json`, merge to `main`, then run **Actions → Desktop apps → Run workflow** with the new tag (for example `v1.3.1`). Installed apps pick it up on their next check.
+
 ## Web and mobile
 
 The web version runs on desktop and mobile browsers. On phones the editor switches to a single-column layout: preview on top, panels in a swipeable tab bar, and a touch-friendly timeline. Add it to your home screen to use it like an app.

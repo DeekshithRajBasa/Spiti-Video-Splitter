@@ -25,3 +25,4 @@ dist-ssr
 release
 build/*.icns
 build/*.ico
+dev-app-update.yml

@@ -44,7 +44,11 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: windows-installer
-          path: release/*.exe
+          # latest.yml + the blockmap are what the in-app updater reads.
+          path: |
+            release/*.exe
+            release/*.exe.blockmap
+            release/latest.yml
           if-no-files-found: error
 
   macos:
@@ -71,7 +75,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: macos-dmg
-          path: release/*.dmg
+          # The dmg is for first installs; the zip is what the in-app updater downloads.
+          path: |
+            release/*.dmg
+            release/*.zip
           if-no-files-found: error
 
   release:
@@ -83,10 +90,15 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+      # By default the release goes to this repository. To keep the source private while the app
+      # updates without any token, set the repository variable RELEASES_REPO (owner/name of a
+      # public, releases-only repo) and the secret RELEASES_TOKEN (a token with Contents: write there).
       - uses: softprops/action-gh-release@v2
         with:
+          repository: ${{ vars.RELEASES_REPO || github.repository }}
+          token: ${{ secrets.RELEASES_TOKEN || github.token }}
           tag_name: ${{ inputs.release_tag || github.ref_name }}
           name: Spiti Video Splitter ${{ inputs.release_tag || github.ref_name }}
-          target_commitish: ${{ github.sha }}
+          target_commitish: ${{ vars.RELEASES_REPO == '' && github.sha || '' }}
           files: dist/*
           generate_release_notes: true
