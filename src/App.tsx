@@ -20,6 +20,7 @@ import {
   Sparkles,
   Download,
   Scissors,
+  MonitorPlay,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { CaptionsPanel } from './components/CaptionsPanel'
@@ -29,6 +30,7 @@ import { ExportButton, ExportProgress, Inspector } from './components/Inspector'
 import { LayoutPanel } from './components/LayoutPanel'
 import { MediaPanel } from './components/MediaPanel'
 import { Preview } from './components/Preview'
+import { RendersButton, RendersDrawer } from './components/RendersPanel'
 import { TemplatesPanel } from './components/TemplatesPanel'
 import { Timeline } from './components/Timeline'
 import { createProject } from './defaults'
@@ -253,6 +255,7 @@ export default function App() {
             <RailItem icon={AudioLines} label="Audio" on={ui.rightTab === 'audio'} onClick={() => store.ui({ rightTab: 'audio' })} />
             <div className="rail-spacer" />
             <RailItem icon={HelpCircle} label="Help" on={help} onClick={() => setHelp(true)} />
+            <RailItem icon={MonitorPlay} label="Renders" on={ui.rendersOpen} onClick={() => store.ui({ rendersOpen: !ui.rendersOpen })} />
             <RailItem icon={Settings2} label="Settings" on={!!settings} onClick={() => setSettings('ai')} />
           </nav>
 
@@ -301,6 +304,7 @@ export default function App() {
       {ui.rightTab !== 'export' && <ExportProgress />}
       {help && <HelpModal onClose={() => setHelp(false)} />}
       {settings && <SettingsModal initial={settings} onClose={() => setSettings(null)} />}
+      <RendersDrawer />
     </div>
   )
 }
@@ -386,6 +390,7 @@ function TopBar({ onHelp, compact }: { onHelp: () => void; compact?: boolean }) 
           <FolderOpen size={15} /> Shortcuts
         </button>
       )}
+      <RendersButton compact={compact} />
       <ExportButton />
     </header>
   )

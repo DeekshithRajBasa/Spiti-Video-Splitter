@@ -24,6 +24,8 @@ export interface UiState {
   lastSaved: number
   exporting: null | { progress: number; status: string }
   lastExport: string | null
+  /** The Renders panel (exported videos) is open. */
+  rendersOpen: boolean
 }
 
 interface State {
@@ -86,6 +88,7 @@ let state: State = {
     lastSaved: Date.now(),
     exporting: null,
     lastExport: null,
+    rendersOpen: false,
   },
 }
 

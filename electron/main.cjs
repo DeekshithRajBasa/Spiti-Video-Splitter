@@ -363,6 +363,19 @@ function registerIpc() {
     await mux(job, (p) => e.sender.send('mux:progress', p))
   })
   ipcMain.handle('shell:reveal', (_e, file) => shell.showItemInFolder(file))
+  // Rendered videos can be listed after a restart, so these accept any video file path
+  // (and nothing else, so the renderer can't open or probe arbitrary files).
+  const isVideoFile = (f) => typeof f === 'string' && path.isAbsolute(f) && /\.(mp4|mov|webm|mkv|m4v)$/i.test(f)
+  ipcMain.handle('file:stat', (_e, file) => {
+    if (!isVideoFile(file)) return { exists: false, size: 0 }
+    try {
+      const st = fs.statSync(file)
+      return { exists: st.isFile(), size: st.size }
+    } catch {
+      return { exists: false, size: 0 }
+    }
+  })
+  ipcMain.handle('shell:open', async (_e, file) => (isVideoFile(file) ? shell.openPath(file) : 'Not a video file'))
   ipcMain.handle('titlebar:theme', (_e, dark) => {
     if (!win || isMac) return
     try {

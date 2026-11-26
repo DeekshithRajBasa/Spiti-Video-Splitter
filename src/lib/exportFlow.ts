@@ -5,6 +5,7 @@ import { desktop, desktopInfo } from './desktop'
 import { engine } from './engine'
 import { canFastExport, ExportCancelled, fastExport } from './fastExport'
 import { download } from './media'
+import { addRender, openRenders } from './renders'
 
 async function writeBlob(path: string, blob: Blob) {
   const d = desktop!
@@ -37,6 +38,8 @@ export async function runExport() {
         store.ui({ exporting: { progress: 0, status: 'Starting' } })
         await fastExport(path, (progress, status) => store.ui({ exporting: { progress, status } }))
         store.ui({ exporting: null, lastExport: path })
+        await addRender({ name: p.name, ext: 'mp4', path })
+        openRenders()
         return
       }
       const r = await engine.export()
@@ -45,10 +48,16 @@ export async function runExport() {
       if (!path) return
       await writeBlob(path, r.blob)
       store.ui({ lastExport: path })
+      await addRender({ name: p.name, ext: r.ext, path, blob: r.blob })
+      openRenders()
       return
     }
     const r = await engine.export()
-    if (r) download(r.blob, `${p.name}.${r.ext}`)
+    if (r) {
+      download(r.blob, `${p.name}.${r.ext}`)
+      await addRender({ name: p.name, ext: r.ext, blob: r.blob })
+      openRenders()
+    }
   } catch (err) {
     if (!(err instanceof ExportCancelled)) alert(`Export failed: ${(err as Error).message}`)
   } finally {
@@ -72,6 +81,7 @@ export async function saveSnapshot() {
 export async function exportClipsBatch(clips: ClipSuggestion[], onEach: (i: number, total: number) => void) {
   if (running || !clips.length) return
   running = true
+  let rendered = 0
   try {
     let folder: string | null = null
     if (desktop) {
@@ -90,6 +100,8 @@ export async function exportClipsBatch(clips: ClipSuggestion[], onEach: (i: numb
         store.ui({ exporting: { progress: 0, status: `Clip ${i + 1}/${clips.length}` } })
         await fastExport(path, (progress, status) => store.ui({ exporting: { progress, status: `Clip ${i + 1}/${clips.length} · ${status}` } }))
         store.ui({ lastExport: path })
+        await addRender({ name, title: clips[i].title, ext: 'mp4', path })
+        rendered++
       } else {
         const r = await engine.export()
         if (!r) return
@@ -97,7 +109,12 @@ export async function exportClipsBatch(clips: ClipSuggestion[], onEach: (i: numb
           const path = `${folder}${sep}${name}.${r.ext}`
           await writeBlob(path, r.blob)
           store.ui({ lastExport: path })
-        } else download(r.blob, `${name}.${r.ext}`)
+          await addRender({ name, title: clips[i].title, ext: r.ext, path, blob: r.blob })
+        } else {
+          download(r.blob, `${name}.${r.ext}`)
+          await addRender({ name, title: clips[i].title, ext: r.ext, blob: r.blob })
+        }
+        rendered++
       }
     }
   } catch (err) {
@@ -105,5 +122,7 @@ export async function exportClipsBatch(clips: ClipSuggestion[], onEach: (i: numb
   } finally {
     store.ui({ exporting: null })
     running = false
+    // Show the whole batch at the end, not after every clip.
+    if (rendered) openRenders()
   }
 }
