@@ -1,0 +1,60 @@
+name: Web app (Cloudflare Pages)
+
+# Deploys the web version to Cloudflare Pages.
+# - Pushes to main go to production (https://<project>.pages.dev or your custom domain).
+# - Runs on any other branch (Actions → Run workflow) publish a preview URL for that branch.
+#
+# One-time setup, in GitHub → Settings → Secrets and variables → Actions:
+#   CLOUDFLARE_API_TOKEN   an API token with the "Cloudflare Pages: Edit" permission
+#   CLOUDFLARE_ACCOUNT_ID  your account ID (Cloudflare dashboard → Workers & Pages, right sidebar)
+# Optional repository variable CLOUDFLARE_PROJECT (defaults to spiti-video-splitter).
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: cloudflare-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROJECT: ${{ vars.CLOUDFLARE_PROJECT || 'spiti-video-splitter' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Loads the one runtime file over Cloudflare's 25 MiB limit from jsDelivr, and ships
+      # public/_headers so the page is cross-origin isolated (multi-threaded captions).
+      - run: npm run build:cloudflare
+      - name: Check Cloudflare secrets
+        id: secrets
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::warning::Add the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID repository secrets to deploy. The site was built but not deployed."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Create the Pages project (first deploy only)
+        if: steps.secrets.outputs.ok == 'true'
+        run: npx --yes wrangler@4 pages project create "$PROJECT" --production-branch=main || true
+      - name: Deploy
+        if: steps.secrets.outputs.ok == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=${{ env.PROJECT }} --branch=${{ github.ref_name }}

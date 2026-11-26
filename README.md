@@ -36,7 +36,32 @@ Long VODs: set In/Out first to transcribe only part of the video.
 
 The web version runs on desktop and mobile browsers. On phones the editor switches to a single-column layout: preview on top, panels in a swipeable tab bar, and a touch-friendly timeline. Add it to your home screen to use it like an app.
 
-To publish it on GitHub Pages: repository **Settings → Pages → Source: GitHub Actions**. The `Web app (GitHub Pages)` workflow then deploys every push to `main`.
+### Hosting on Cloudflare Pages
+
+The web version deploys to Cloudflare Pages (free plan is enough; works with private repos). Cloudflare serves `public/_headers`, which makes the page cross-origin isolated so on-device captions use every CPU core.
+
+**Option A: GitHub Actions** (already set up in `.github/workflows/cloudflare.yml`)
+
+1. In Cloudflare, create an API token with the **Cloudflare Pages: Edit** permission (My Profile → API Tokens → Create Token → Custom token).
+2. Copy your **Account ID** (Workers & Pages overview, right sidebar).
+3. In GitHub → Settings → Secrets and variables → Actions, add the secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
+4. Push to `main` (or run the **Web app (Cloudflare Pages)** workflow). The site goes live at `https://spiti-video-splitter.pages.dev`. Set the repository variable `CLOUDFLARE_PROJECT` to use a different project name.
+
+**Option B: Cloudflare's Git integration** (no secrets in GitHub)
+
+Workers & Pages → Create → Pages → Connect to Git → pick this repository, then set:
+
+| Setting | Value |
+| --- | --- |
+| Build command | `npm run build:cloudflare` |
+| Build output directory | `dist` |
+| Environment variable | `NODE_VERSION` = `22` |
+
+Every branch then gets its own preview URL. If you use this option, delete `.github/workflows/cloudflare.yml` so the site isn't deployed twice.
+
+Add a custom domain under the project's **Custom domains** tab.
+
+`npm run build:cloudflare` differs from `npm run build` in one way: the 26 MB WebGPU speech runtime is over Cloudflare's 25 MiB per-file limit, so that file loads from jsDelivr instead of your site. The build checks that no other file is over the limit.
 
 ## Desktop apps (Windows & Mac)
 
