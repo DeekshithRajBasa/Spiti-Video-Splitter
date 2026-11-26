@@ -1,7 +1,7 @@
-import { Copy, Download, ExternalLink, FolderOpen, MonitorPlay, Trash2, X } from 'lucide-react'
+import { Copy, Download, ExternalLink, FolderOpen, MonitorPlay, Plus, Trash2, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { desktop, desktopInfo } from '../lib/desktop'
-import { clearRenders, removeRender, selectRender, useRenders, type RenderItem } from '../lib/renders'
+import { addExistingRenders, clearRenders, removeRender, selectRender, useRenders, type RenderItem } from '../lib/renders'
 import { fmtShort } from '../lib/timeline'
 import { store, useUi } from '../store'
 
@@ -71,6 +71,11 @@ export function RendersDrawer() {
           <h3>Renders</h3>
           <span className="muted">{items.length ? `${items.length} video${items.length > 1 ? 's' : ''}` : ''}</span>
           <div className="topbar-spacer" />
+          {desktop && (
+            <button type="button" className="btn ghost sm" title="Add videos you already exported" onClick={() => void addExistingRenders()}>
+              <Plus size={13} /> Add
+            </button>
+          )}
           {items.length > 0 && (
             <button
               type="button"
@@ -90,7 +95,15 @@ export function RendersDrawer() {
           <div className="renders-empty">
             <MonitorPlay size={30} />
             <strong>Nothing rendered yet</strong>
-            <span>Export a clip and it shows up here, ready to play, open or share.</span>
+            <span>Every video you export shows up here, ready to play, open or share.</span>
+            {desktop && (
+              <>
+                <span>Exported something before? Add it to the list.</span>
+                <button type="button" className="btn sm" onClick={() => void addExistingRenders()}>
+                  <Plus size={13} /> Add videos…
+                </button>
+              </>
+            )}
           </div>
         ) : (
           <>
