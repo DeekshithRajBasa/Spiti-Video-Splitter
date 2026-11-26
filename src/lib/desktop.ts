@@ -39,6 +39,8 @@ export interface DesktopBridge {
   request(r: { url: string; method?: string; headers?: Record<string, string>; body?: string; timeoutMs?: number }): Promise<{ status: number; ok: boolean; text: string }>
   secretGet(name: string): Promise<string>
   secretSet(name: string, value: string): Promise<void>
+  takeDeepLinks(): Promise<string[]>
+  onDeepLink(cb: () => void): () => void
 }
 
 export interface DiskFile {

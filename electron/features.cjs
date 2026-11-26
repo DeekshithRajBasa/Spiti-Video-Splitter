@@ -67,9 +67,16 @@ const ytAsset = () =>
   isWin ? 'yt-dlp.exe' : isMac ? 'yt-dlp_macos' : process.arch === 'arm64' ? 'yt-dlp_linux_aarch64' : 'yt-dlp_linux'
 const RELEASE = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download'
 
+/**
+ * YouTube needs a JavaScript runtime. yt-dlp prefers Deno when installed; otherwise the app
+ * runs itself as Node (ELECTRON_RUN_AS_NODE), so it works on machines with neither.
+ */
+const jsRuntimeArgs = () => ['--js-runtimes', `node:${process.execPath}`]
+const ytEnv = () => ({ ...process.env, ELECTRON_RUN_AS_NODE: '1' })
+
 function runYt(args, opts = {}) {
   return new Promise((resolve, reject) => {
-    execFile(ytPath(), args, { maxBuffer: 64 * 1024 * 1024, windowsHide: true, ...opts }, (err, stdout, stderr) => {
+    execFile(ytPath(), [...jsRuntimeArgs(), ...args], { maxBuffer: 64 * 1024 * 1024, windowsHide: true, env: ytEnv(), ...opts }, (err, stdout, stderr) => {
       if (err) reject(new Error(cleanErr(stderr) || err.message))
       else resolve(stdout)
     })
@@ -200,7 +207,7 @@ function startDownload(sender, ffmpeg, opts) {
   args.push(opts.url)
   log('yt-dlp', args.join(' '))
 
-  const proc = spawn(ytPath(), args, { windowsHide: true, detached: !isWin })
+  const proc = spawn(ytPath(), [...jsRuntimeArgs(), ...args], { windowsHide: true, detached: !isWin, env: ytEnv() })
   const job = { id, proc, dir, stopped: false, final: null, err: '', live: !!opts.live, startedAt: Date.now() }
   jobs.set(id, job)
   const emit = (p) => !sender.isDestroyed() && sender.send('link:progress', { id, ...p })

@@ -44,6 +44,8 @@ interface AiState {
   clipsFor: string | null
   activeClip: string | null
   notice: string
+  /** Link shown in the Auto clip box (pasted anywhere, or handed over by spiti://). */
+  pendingUrl: string
 }
 
 let state: AiState = {
@@ -53,6 +55,7 @@ let state: AiState = {
   clipsFor: null,
   activeClip: null,
   notice: '',
+  pendingUrl: '',
 }
 const listeners = new Set<() => void>()
 

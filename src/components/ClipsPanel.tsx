@@ -1,16 +1,17 @@
-import { Captions, CircleStop, Download, Link2, Loader2, Play, Radio, Settings2, Sparkles, Wand2, X } from 'lucide-react'
+import { Captions, CircleStop, Download, ExternalLink, Link2, Loader2, MonitorDown, Play, Radio, Server, Settings2, Sparkles, Wand2, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { applyClip, findClips, transcribeRange } from '../lib/ai/clips'
+import { autoClip, desktopHandoffUrl, receiveLink } from '../lib/ai/autoclip'
+import { applyClip } from '../lib/ai/clips'
 import { providerInfo } from '../lib/ai/providers'
 import { aiSettings, useAiSettings, type ClipMode } from '../lib/ai/settings'
 import { aiStore, useAi, type ClipSuggestion } from '../lib/ai/state'
-import { applyCaptions, cancelTranscription, modelInfo, transcribe } from '../lib/ai/whisper'
+import { cancelTranscription, modelInfo } from '../lib/ai/whisper'
 import { desktop, type LinkInfo } from '../lib/desktop'
 import { engine } from '../lib/engine'
 import { exportClipsBatch, runExport } from '../lib/exportFlow'
-import { fmtElapsed, getLinkInfo, importLink, isUrl, stopLink } from '../lib/links'
+import { canImportPlatformLinks, fmtElapsed, getLinkInfo, isDirectMedia, isUrl, stopLink } from '../lib/links'
 import { fmtShort } from '../lib/timeline'
-import { store, useMedia, useProject } from '../store'
+import { useMedia, useProject } from '../store'
 import { Field, Section, Segmented, Slider, Toggle } from './ui'
 
 function parseTime(s: string): number | undefined {
@@ -20,7 +21,7 @@ function parseTime(s: string): number | undefined {
   return parts.reduce((a, n) => a * 60 + n, 0)
 }
 
-export function ClipsPanel({ onOpenSettings }: { onOpenSettings: () => void }) {
+export function ClipsPanel({ onOpenSettings }: { onOpenSettings: (tab?: 'ai' | 'speech' | 'app') => void }) {
   const p = useProject()
   const media = useMedia()
   const s = useAiSettings()
@@ -30,7 +31,8 @@ export function ClipsPanel({ onOpenSettings }: { onOpenSettings: () => void }) {
   const active = useAi((x) => x.activeClip)
   const notice = useAi((x) => x.notice)
   const transcripts = useAi((x) => x.transcripts)
-  const [url, setUrl] = useState('')
+  const url = useAi((x) => x.pendingUrl)
+  const setUrl = (v: string) => aiStore.set({ pendingUrl: v })
   const [info, setInfo] = useState<LinkInfo | null>(null)
   const [infoErr, setInfoErr] = useState('')
   const [quality, setQuality] = useState(1080)
@@ -49,11 +51,15 @@ export function ClipsPanel({ onOpenSettings }: { onOpenSettings: () => void }) {
   const prov = providerInfo(s.provider)
   const provModel = s.providers[s.provider].model
 
-  // Look up a pasted link (desktop) to show what it is and whether it's live.
+  const platformLink = isUrl(url) && !isDirectMedia(url)
+  const canFetch = isUrl(url) && (isDirectMedia(url) || canImportPlatformLinks())
+  const needsHandoff = !desktop && platformLink && !canImportPlatformLinks()
+
+  // Look up a pasted link to show what it is and whether it's live.
   useEffect(() => {
     setInfo(null)
     setInfoErr('')
-    if (!desktop || !isUrl(url)) return
+    if (!isUrl(url) || !platformLink || !canImportPlatformLinks()) return
     const n = ++lookup.current
     const t = setTimeout(() => {
       getLinkInfo(url)
@@ -63,44 +69,13 @@ export function ClipsPanel({ onOpenSettings }: { onOpenSettings: () => void }) {
     return () => clearTimeout(t)
   }, [url])
 
-  const run = async (opts: { fromLink: boolean; captionsOnly?: boolean }) => {
-    aiStore.set({ notice: '' })
-    aiStore.job({ stage: 'link', message: 'Starting…', progress: null, error: undefined })
-    try {
-      let m = master
-      if (opts.fromLink) {
-        const live = info?.isLive
-        m = await importLink(url, {
-          maxHeight: quality,
-          start: live ? undefined : parseTime(from),
-          end: live ? undefined : parseTime(to),
-          live: live ? liveMode : undefined,
-          maxMinutes: live && liveMinutes > 0 ? liveMinutes : undefined,
-        })
-        if (!m) return // importLink reported the error
-        setUrl('')
-      }
-      if (!m || m.kind !== 'video') throw new Error('Add a video or paste a link first.')
-      // Reuse the transcript if it was made with the same model and covers the range.
-      const range = opts.fromLink ? undefined : transcribeRange()
-      let t = aiStore.get().transcripts[m.id]
-      const covers = t && t.model === s.whisperModel && (!range || (t.range[0] <= range[0] && t.range[1] >= range[1]))
-      if (!covers) t = await transcribe(m, range)
-      if (opts.captionsOnly) {
-        const n = applyCaptions(t!, range)
-        aiStore.job({ stage: 'done', message: `Added ${n} captions.`, progress: 1 })
-        store.ui({ leftTab: 'captions' })
-        return
-      }
-      aiStore.job({ stage: 'clips', message: 'Finding the best moments…', progress: null })
-      const found = await findClips(t!, info?.title || m.name)
-      aiStore.job({ stage: 'done', message: found.length ? `Found ${found.length} clips.` : 'No clips found.', progress: 1 })
-      if (found[0]) applyClip(found[0])
-    } catch (e) {
-      const msg = (e as Error).message
-      aiStore.job({ stage: msg === 'Cancelled' ? 'idle' : 'error', message: '', error: msg === 'Cancelled' ? undefined : msg, progress: null })
-    }
-  }
+  const run = (opts: { fromLink: boolean; captionsOnly?: boolean }) =>
+    autoClip({
+      url: opts.fromLink ? url : undefined,
+      info: opts.fromLink && info ? info : undefined,
+      captionsOnly: opts.captionsOnly,
+      choices: { maxHeight: quality, start: parseTime(from), end: parseTime(to), liveMode, liveMinutes },
+    })
 
   const cancel = () => {
     if (job.stage === 'link') stopLink()
@@ -117,7 +92,14 @@ export function ClipsPanel({ onOpenSettings }: { onOpenSettings: () => void }) {
           <input
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            placeholder={desktop ? 'YouTube, Twitch, Kick, X, Instagram, TikTok… or a live stream' : 'Direct link to a video file (.mp4, .webm)'}
+            onPaste={(e) => {
+              const text = e.clipboardData.getData('text').trim()
+              if (!isUrl(text)) return
+              e.preventDefault()
+              receiveLink(text, 'paste')
+            }}
+            onKeyDown={(e) => e.key === 'Enter' && canFetch && !busy && void run({ fromLink: true })}
+            placeholder={canImportPlatformLinks() ? 'Paste a YouTube, Twitch, Kick, X, TikTok… or live link' : 'Paste a video link'}
             aria-label="Video link"
             inputMode="url"
           />
@@ -127,12 +109,24 @@ export function ClipsPanel({ onOpenSettings }: { onOpenSettings: () => void }) {
             </button>
           )}
         </label>
-        {!desktop && (
-          <p className="hint">
-            YouTube, Twitch and other sites block downloads from websites. Use the desktop app for those links, or drop a file you downloaded.
-          </p>
+        {!url && <p className="hint">Paste a link anywhere in the app (Ctrl/⌘+V) and clipping starts by itself.</p>}
+        {needsHandoff && (
+          <div className="handoff">
+            <p>
+              Browsers can't download from YouTube, Twitch and similar sites. Pick one:
+            </p>
+            <a className="btn primary full" href={desktopHandoffUrl(url)}>
+              <MonitorDown size={15} /> Clip it in the desktop app
+            </a>
+            <button type="button" className="btn full" onClick={() => onOpenSettings('app')}>
+              <Server size={14} /> Use a link server
+            </button>
+            <a className="link small" href="https://github.com/DeekshithRajBasa/Spiti-Video-Splitter/releases/latest" target="_blank" rel="noreferrer">
+              Get the desktop app <ExternalLink size={11} />
+            </a>
+          </div>
         )}
-        {desktop && isUrl(url) && !info && !infoErr && (
+        {platformLink && canImportPlatformLinks() && !info && !infoErr && !busy && (
           <p className="hint">
             <Loader2 size={12} className="spin" /> Looking up the link…
           </p>
@@ -157,7 +151,7 @@ export function ClipsPanel({ onOpenSettings }: { onOpenSettings: () => void }) {
             </div>
           </div>
         )}
-        {desktop && isUrl(url) && (
+        {platformLink && canImportPlatformLinks() && (
           <>
             <Field label="Quality" group>
               <Segmented<number>
@@ -207,7 +201,7 @@ export function ClipsPanel({ onOpenSettings }: { onOpenSettings: () => void }) {
       <Section
         title="Clip finder"
         right={
-          <button type="button" className="btn ghost sm" onClick={onOpenSettings}>
+          <button type="button" className="btn ghost sm" onClick={() => onOpenSettings()}>
             <Settings2 size={13} /> Models
           </button>
         }
@@ -233,18 +227,15 @@ export function ClipsPanel({ onOpenSettings }: { onOpenSettings: () => void }) {
         </div>
         <Slider label="Shortest clip" value={s.minLength} min={5} max={120} step={5} onChange={(v) => aiSettings.set({ minLength: v, maxLength: Math.max(s.maxLength, v + 5) })} format={(v) => `${v}s`} />
         <Toggle label="Add word-by-word captions" checked={s.autoCaptions} onChange={(v) => aiSettings.set({ autoCaptions: v })} />
-        <Toggle label="Use the hook as the headline" checked={s.hookHeadline} onChange={(v) => aiSettings.set({ hookHeadline: v })} />
+        <Toggle label="Hook as headline" checked={s.hookHeadline} onChange={(v) => aiSettings.set({ hookHeadline: v })} />
+        <Toggle label="Start as soon as I paste a link" checked={s.autoStart} onChange={(v) => aiSettings.set({ autoStart: v })} />
 
-        {desktop && isUrl(url) ? (
+        {canFetch ? (
           <button type="button" className="btn primary full" disabled={busy} onClick={() => void run({ fromLink: true })}>
             {info?.isLive ? <Radio size={15} /> : <Sparkles size={15} />}
             {info?.isLive ? 'Record & auto clip' : 'Download & auto clip'}
           </button>
-        ) : !desktop && isUrl(url) ? (
-          <button type="button" className="btn primary full" disabled={busy} onClick={() => void run({ fromLink: true })}>
-            <Sparkles size={15} /> Download & auto clip
-          </button>
-        ) : (
+        ) : needsHandoff ? null : (
           <button type="button" className="btn primary full" disabled={busy || !master} onClick={() => void run({ fromLink: false })}>
             <Sparkles size={15} /> Auto clip {master ? 'this video' : ''}
           </button>

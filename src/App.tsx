@@ -40,6 +40,7 @@ import {
   setOutPoint,
   splitAtPlayhead,
 } from './lib/actions'
+import { receiveLink } from './lib/ai/autoclip'
 import { desktop, desktopReady } from './lib/desktop'
 import { engine } from './lib/engine'
 import { runExport, saveSnapshot } from './lib/exportFlow'
@@ -75,6 +76,28 @@ export default function App() {
   const mobile = useIsMobile()
 
   const importRef = useRef<HTMLInputElement>(null)
+
+  // Paste a link anywhere (outside text fields) and clipping starts.
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const el = e.target as HTMLElement | null
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
+      const text = e.clipboardData?.getData('text')?.trim() ?? ''
+      if (!/^https?:\/\/\S+$/i.test(text)) return
+      e.preventDefault()
+      receiveLink(text, 'paste')
+    }
+    window.addEventListener('paste', onPaste)
+    return () => window.removeEventListener('paste', onPaste)
+  }, [])
+
+  // Desktop: links handed over from the web app (spiti://clip?url=…).
+  useEffect(() => {
+    if (!desktop) return
+    const take = () => void desktop!.takeDeepLinks().then((links) => links.forEach((l) => receiveLink(l, 'deeplink')))
+    take()
+    return desktop.onDeepLink(take)
+  }, [])
 
   useEffect(() => {
     document.documentElement.dataset.theme = ui.theme
@@ -210,7 +233,7 @@ export default function App() {
         }}
       />
       {mobile ? (
-        <MobileShell openSettings={() => setSettings('ai')} onHelp={() => setHelp(true)} />
+        <MobileShell openSettings={(t) => setSettings(t ?? 'ai')} onHelp={() => setHelp(true)} />
       ) : (
         <>
           <nav className="rail" aria-label="Main">
@@ -244,7 +267,7 @@ export default function App() {
                     </button>
                   ))}
                 </div>
-                <LeftPanel tab={ui.leftTab} openSettings={() => setSettings('ai')} />
+                <LeftPanel tab={ui.leftTab} openSettings={(t) => setSettings(t ?? 'ai')} />
               </aside>
 
               <Preview />
@@ -294,7 +317,9 @@ function useIsMobile() {
   return m
 }
 
-function LeftPanel({ tab, openSettings }: { tab: UiState['leftTab']; openSettings: () => void }) {
+type OpenSettings = (tab?: 'ai' | 'speech' | 'app') => void
+
+function LeftPanel({ tab, openSettings }: { tab: UiState['leftTab']; openSettings: OpenSettings }) {
   if (tab === 'clips') return <ClipsPanel onOpenSettings={openSettings} />
   if (tab === 'media') return <MediaPanel />
   if (tab === 'captions') return <CaptionsPanel />
@@ -380,7 +405,7 @@ const MOBILE_TABS: { id: string; label: string; icon: typeof Film; left?: UiStat
 ]
 
 /** Phone layout: preview on top, a scrollable tab strip, and one panel at a time. */
-function MobileShell({ openSettings, onHelp }: { openSettings: () => void; onHelp: () => void }) {
+function MobileShell({ openSettings, onHelp }: { openSettings: OpenSettings; onHelp: () => void }) {
   const ui = useUi()
   const tab = MOBILE_TABS.find((t) => t.id === ui.mobileTab) ?? MOBILE_TABS[0]
   return (
@@ -399,7 +424,7 @@ function MobileShell({ openSettings, onHelp }: { openSettings: () => void; onHel
             <span>{t.label}</span>
           </button>
         ))}
-        <button type="button" onClick={openSettings}>
+        <button type="button" onClick={() => openSettings()}>
           <Settings2 size={15} />
           <span>Settings</span>
         </button>

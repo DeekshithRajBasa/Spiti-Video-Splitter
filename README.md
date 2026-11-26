@@ -4,6 +4,14 @@ Turn widescreen podcasts, live streams and gameplay into vertical clips for Shor
 
 ## Auto clip: paste a link, get clips
 
+**Copy a link and paste it anywhere in the app** (Ctrl/⌘+V). It switches to Auto clip and starts on its own: download, captions, best moments, and the top clip opens ready to export. Turn this off with **Start as soon as I paste a link**.
+
+| Where | YouTube / Twitch / other sites |
+| --- | --- |
+| Desktop app | Works directly. |
+| Web, with a [link server](#link-server-youtube-in-the-web-version) | Works directly. |
+| Web, without one | **Clip it in the desktop app** opens the desktop app (via a `spiti://` link) and it starts clipping there. |
+
 1. **Paste a link** in the Auto clip tab, or open a video file.
    - Desktop app: YouTube, Twitch (VODs, clips, live), Kick, X, Instagram, TikTok, Facebook, Vimeo and 1,000+ other sites through [yt-dlp](https://github.com/yt-dlp/yt-dlp). It installs itself on first use (checksum-verified) and updates daily. Choose the quality, optionally download only part of a long VOD (From / To).
    - **Live streams**: record from now (or from the start, on YouTube), stop after N minutes or press **Stop & clip** whenever you like. The recording is converted to MP4 and clipped straight away.
@@ -55,6 +63,31 @@ Add a custom domain under the project's **Custom domains** tab.
 
 `npm run build:cloudflare` differs from `npm run build` in one way: the 26 MB WebGPU speech runtime is over Cloudflare's 25 MiB per-file limit, so that file loads from jsDelivr instead of your site. The build checks that no other file is over the limit.
 
+### Link server (YouTube in the web version)
+
+Browsers can't download from YouTube, Twitch and similar sites. The link server in `server/` is a small Docker container (Node + yt-dlp + FFmpeg) that downloads links for the web app. Run it yourself, ideally at home: YouTube often blocks downloads from cloud and datacenter servers ("Sign in to confirm you're not a bot").
+
+```bash
+cd server
+# edit docker-compose.yml: set ACCESS_TOKEN and ALLOWED_ORIGINS (your web app's address)
+docker compose up -d
+```
+
+Then in the web app open **Settings → App → Link server**, enter the server's URL (e.g. `http://localhost:8787`) and the same access token, and press **Test connection**. A web app served over HTTPS can reach `http://localhost`, but a server elsewhere needs HTTPS too: put it behind a reverse proxy, or a Cloudflare Tunnel (`cloudflared tunnel --url http://localhost:8787`).
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `ACCESS_TOKEN` | (none) | Required in practice. Without it anyone who finds the server can use it. |
+| `ALLOWED_ORIGINS` | `*` | Comma-separated web app origins allowed to call it. |
+| `MAX_HEIGHT` | `1080` | Highest download resolution. |
+| `MAX_DURATION_MINUTES` | `240` | Longer videos need a From/To range. |
+| `MAX_LIVE_MINUTES` | `120` | Longest live recording. |
+| `MAX_CONCURRENT_JOBS` | `2` | Downloads at once. |
+| `FILE_TTL_MINUTES` | `60` | Finished files are deleted after this (or as soon as the web app has them). |
+| `COOKIES_FILE` | (none) | A browser-exported `cookies.txt`, for videos that need a signed-in account. |
+
+Without Docker: install yt-dlp and FFmpeg, then `ACCESS_TOKEN=… ALLOWED_ORIGINS=… node server/server.mjs`.
+
 ## Desktop apps (Windows & Mac)
 
 Download the installers from the repository's **Actions** tab (latest "Desktop apps" run → Artifacts) or from **Releases** once a version tag is pushed.
@@ -69,7 +102,8 @@ The desktop app adds:
 
 - **Fast export**: FFmpeg decodes your footage frame by frame, the graphics card encodes H.264 (Media Foundation on Windows, so NVENC / AMD AMF / Intel QuickSync; VideoToolbox on Mac), and FFmpeg mixes the voice, music riser and sound effects into an MP4 with AAC audio. It runs faster than real time, is frame-accurate at every cut, and keeps going while the window is in the background. Real-time export is still there as a fallback.
 - Native save dialogs, **Show in Finder / Explorer** after export, a proper menu bar (File → Import, Export, Save Frame; Edit → Undo, Redo, Split) and a native title bar.
-- Link import and live-stream recording (see Auto clip above), with downloads saved to Videos → Spiti Downloads.
+- Link import and live-stream recording (see Auto clip above), with downloads saved to Videos → Spiti Downloads. YouTube needs a JavaScript runtime; the app supplies its own, so nothing else needs installing.
+- Opens `spiti://clip?url=…` links, so the web version can hand a link over and clipping starts here.
 - API keys for cloud AI are encrypted with your OS keychain.
 - Fully offline: fonts and FFmpeg ship inside the app. Speech models download once and are cached.
 

@@ -24,6 +24,11 @@ export interface AiSettings {
   /** Use the clip's hook line as the headline when applying a clip. */
   hookHeadline: boolean
   captionWords: number
+  /** Start clipping as soon as a link is pasted. */
+  autoStart: boolean
+  /** Web version: self-hosted link server (yt-dlp) for YouTube/Twitch links. */
+  linkServer: string
+  linkToken: string
 }
 
 export const DEFAULT_PROVIDERS: Record<ProviderId, ProviderConfig> = {
@@ -54,6 +59,9 @@ function load(): AiSettings {
     autoCaptions: true,
     hookHeadline: true,
     captionWords: 4,
+    autoStart: true,
+    linkServer: '',
+    linkToken: '',
   }
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) || '{}') as Partial<AiSettings>

@@ -4,6 +4,7 @@ import { listModels, PROVIDERS, providerInfo, RECOMMENDED_LOCAL, type ModelEntry
 import { aiSettings, DEFAULT_PROVIDERS, getApiKey, setApiKey, useAiSettings } from '../lib/ai/settings'
 import { cachedModels, deleteCachedModel, detectGpu, LANGUAGES, WHISPER_MODELS } from '../lib/ai/whisper'
 import { desktop } from '../lib/desktop'
+import { testLinkServer } from '../lib/links'
 import { store, useUi } from '../store'
 import { Field, Section, Segmented } from './ui'
 
@@ -347,6 +348,9 @@ function AiSettingsView() {
 
 function AppSettings() {
   const ui = useUi()
+  const s = useAiSettings()
+  const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null)
+  const [testing, setTesting] = useState(false)
   return (
     <>
       <Field label="Theme" group>
@@ -359,11 +363,56 @@ function AppSettings() {
           onChange={(v) => store.ui({ theme: v })}
         />
       </Field>
-      <p className="hint">
-        {desktop
-          ? 'Links are downloaded with yt-dlp, which installs itself on first use and updates daily. Files are saved to Videos → Spiti Downloads.'
-          : 'You are using the web version. Get the desktop app for YouTube/Twitch links, live-stream recording and fast GPU export.'}
-      </p>
+      <Field label="Pasting a link" group>
+        <Segmented<'auto' | 'manual'>
+          value={s.autoStart ? 'auto' : 'manual'}
+          options={[
+            { value: 'auto', label: 'Start clipping right away' },
+            { value: 'manual', label: 'Wait for me to press Start' },
+          ]}
+          onChange={(v) => aiSettings.set({ autoStart: v === 'auto' })}
+        />
+      </Field>
+      {desktop ? (
+        <p className="hint">
+          Links are downloaded with yt-dlp, which installs itself on first use and updates daily. Files are saved to Videos → Spiti Downloads.
+        </p>
+      ) : (
+        <Section title="Link server (YouTube, Twitch… in the browser)">
+          <p className="hint">
+            Browsers can't download from YouTube or Twitch. Run the included link server (a small Docker container with yt-dlp) on your computer, a home
+            server or a VPS, and the web app sends links to it. Setup is in the README under “Link server”. Running it at home works best: YouTube often blocks
+            cloud servers.
+          </p>
+          <Field label="Server URL">
+            <input value={s.linkServer} placeholder="https://links.example.com or http://localhost:8787" onChange={(e) => aiSettings.set({ linkServer: e.target.value })} spellCheck={false} />
+          </Field>
+          <Field label="Access token" hint="the ACCESS_TOKEN you set on the server">
+            <input type="password" value={s.linkToken} onChange={(e) => aiSettings.set({ linkToken: e.target.value })} autoComplete="off" spellCheck={false} />
+          </Field>
+          <div className="btn-row">
+            <button
+              type="button"
+              className="btn sm"
+              disabled={!s.linkServer.trim() || testing}
+              onClick={async () => {
+                setTesting(true)
+                try {
+                  setStatus({ ok: true, text: await testLinkServer() })
+                } catch (e) {
+                  setStatus({ ok: false, text: (e as Error).message })
+                } finally {
+                  setTesting(false)
+                }
+              }}
+            >
+              {testing ? <Loader2 size={13} className="spin" /> : <RefreshCw size={13} />} Test connection
+            </button>
+          </div>
+          {status && (status.ok ? <p className="ok-text"><Check size={13} /> {status.text}</p> : <p className="error-text">{status.text}</p>)}
+          <p className="hint">Without a link server, YouTube links pasted here open in the desktop app instead.</p>
+        </Section>
+      )}
     </>
   )
 }
