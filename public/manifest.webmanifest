@@ -1,0 +1,11 @@
+{
+  "name": "Spiti Video Splitter",
+  "short_name": "Spiti",
+  "description": "Turn long videos, podcasts and streams into vertical clips with auto captions.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b0b0e",
+  "theme_color": "#111114",
+  "icons": [{ "src": "icon.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any" }]
+}
