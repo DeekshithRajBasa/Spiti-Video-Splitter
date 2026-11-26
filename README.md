@@ -55,14 +55,9 @@ The first updater-enabled version has to be installed by hand once; after that, 
 
 ### Where updates come from
 
-The app reads the GitHub releases named in the `publish` block of `electron-builder.yml`. Your source repository can stay private, but the app then needs a credential to read its releases. Choose one:
+The app reads the public GitHub releases of this repository (the `publish` block in `electron-builder.yml`), so no token or extra setup is needed.
 
-1. **Public releases-only repo (recommended).** Create an empty public repository (for example `Spiti-Video-Splitter-releases`, with a README so it has a branch). Then:
-   - In `electron-builder.yml`, set `publish.repo` (and `owner`) to that repository.
-   - In this repository's Settings → Secrets and variables → Actions, add the variable `RELEASES_REPO` (`owner/Spiti-Video-Splitter-releases`) and the secret `RELEASES_TOKEN` (a fine-grained token with **Contents: Read and write** on the releases repo).
-   - Run the **Desktop apps** workflow with a release tag as usual. Installers and update files are published to the releases repo; your source stays private. Do this **before** shipping the first updater-enabled version, because installed apps remember where to look.
-2. **Private releases + a token.** Keep releases in this private repository. Each user creates a fine-grained GitHub token with read-only **Contents** access to it and pastes it in **Settings → App → Updates → Releases are private?**. It is stored in the system keychain. Tokens expire (at most a year), so you'd renew it.
-3. **Public repository.** Make this repo public and nothing else is needed.
+If you ever make the repository private again, the app can still update: either paste a fine-grained, read-only **Contents** token in **Settings → App → Updates → Releases are private?** (stored in the system keychain), or publish releases to a separate public releases-only repo by setting `publish.repo` in `electron-builder.yml`, the repository variable `RELEASES_REPO` (`owner/name`) and the secret `RELEASES_TOKEN` (Contents: read and write on that repo). Installed apps remember where to look, so make that change before shipping the version people install.
 
 ### Releasing an update
 
