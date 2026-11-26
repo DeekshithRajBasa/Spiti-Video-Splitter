@@ -11,6 +11,16 @@ import { desktop } from '../desktop'
 import { aiSettings } from './settings'
 import { aiStore, type Transcript, type Word } from './state'
 
+declare const __ORT_VERSION__: string
+/**
+ * Hosts with a per-file size limit (Cloudflare Pages: 25 MiB) can't serve the 26 MB WebGPU
+ * runtime, so builds made with VITE_ORT_CDN=1 load that one file from jsDelivr instead.
+ */
+const ORT_CDN = import.meta.env.VITE_ORT_CDN ? `https://cdn.jsdelivr.net/npm/onnxruntime-web@${__ORT_VERSION__}/dist/` : ''
+const GPU_RUNTIME = ORT_CDN
+  ? { mjs: `${ORT_CDN}ort-wasm-simd-threaded.asyncify.mjs`, wasm: `${ORT_CDN}ort-wasm-simd-threaded.asyncify.wasm` }
+  : { mjs: ortAsyncifyMjs, wasm: ortAsyncifyWasm }
+
 export interface WhisperModel {
   id: string
   name: string
@@ -150,7 +160,7 @@ async function loadModel(modelId: string) {
       device,
       dtype,
       // The asyncify build runs both WASM and WebGPU; the plain one is for browsers without WebGPU.
-      wasmPaths: device === 'webgpu' ? { mjs: abs(ortAsyncifyMjs), wasm: abs(ortAsyncifyWasm) } : { mjs: abs(ortPlainMjs), wasm: abs(ortPlainWasm) },
+      wasmPaths: device === 'webgpu' ? { mjs: abs(GPU_RUNTIME.mjs), wasm: abs(GPU_RUNTIME.wasm) } : { mjs: abs(ortPlainMjs), wasm: abs(ortPlainWasm) },
       threads: threaded ? Math.min(8, navigator.hardwareConcurrency || 4) : 1,
     })
   })
