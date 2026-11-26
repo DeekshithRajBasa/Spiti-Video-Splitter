@@ -14,7 +14,8 @@ export interface UiState {
   playing: boolean
   zoom: number // px per second
   selection: Selection
-  leftTab: 'media' | 'captions' | 'layout' | 'templates'
+  leftTab: 'clips' | 'media' | 'captions' | 'layout' | 'templates'
+  mobileTab: string
   rightTab: 'frame' | 'style' | 'audio' | 'export'
   theme: 'light' | 'dark'
   framing: boolean
@@ -75,7 +76,8 @@ let state: State = {
     playing: false,
     zoom: 40,
     selection: null,
-    leftTab: 'media',
+    leftTab: 'clips',
+    mobileTab: 'clips',
     rightTab: 'frame',
     theme: initialTheme(),
     framing: false,

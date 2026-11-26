@@ -18,9 +18,13 @@ import {
   Clapperboard,
   PanelsTopLeft,
   Sparkles,
+  Download,
+  Scissors,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { CaptionsPanel } from './components/CaptionsPanel'
+import { ClipsPanel } from './components/ClipsPanel'
+import { SettingsModal } from './components/SettingsModal'
 import { ExportButton, ExportProgress, Inspector } from './components/Inspector'
 import { LayoutPanel } from './components/LayoutPanel'
 import { MediaPanel } from './components/MediaPanel'
@@ -42,6 +46,7 @@ import { runExport, saveSnapshot } from './lib/exportFlow'
 import { store, useProject, useUi, type UiState } from './store'
 
 const LEFT_TABS: { id: UiState['leftTab']; label: string; icon: typeof Film }[] = [
+  { id: 'clips', label: 'Auto clip', icon: Sparkles },
   { id: 'media', label: 'Media', icon: Film },
   { id: 'captions', label: 'Captions', icon: Type },
   { id: 'layout', label: 'Layout', icon: PanelsTopLeft },
@@ -64,16 +69,10 @@ function ago(t: number, now: number) {
 
 export default function App() {
   const ui = useUi()
-  const p = useProject()
   const [help, setHelp] = useState(false)
   const [dragging, setDragging] = useState(false)
-  const [now, setNow] = useState(Date.now())
-  const [editingName, setEditingName] = useState(false)
-
-  useEffect(() => {
-    const i = setInterval(() => setNow(Date.now()), 10_000)
-    return () => clearInterval(i)
-  }, [])
+  const [settings, setSettings] = useState<null | 'ai' | 'speech' | 'app'>(null)
+  const mobile = useIsMobile()
 
   const importRef = useRef<HTMLInputElement>(null)
 
@@ -210,112 +209,62 @@ export default function App() {
           e.target.value = ''
         }}
       />
-      <nav className="rail" aria-label="Main">
-        <div className="logo" aria-label="Spiti">
-          <svg viewBox="0 0 32 32" width="34" height="34">
-            <rect width="32" height="32" rx="9" fill="currentColor" />
-            <path d="M9 21 L14 11 L18 18 L20.5 14 L24 21 Z" fill="var(--rail-bg)" />
-            <circle cx="21" cy="10" r="2" fill="var(--rail-bg)" />
-          </svg>
-        </div>
-        <RailItem icon={Clapperboard} label="Home" on={ui.leftTab === 'media'} onClick={() => store.ui({ leftTab: 'media' })} />
-        <RailItem icon={Captions} label="Captions" on={ui.leftTab === 'captions'} onClick={() => store.ui({ leftTab: 'captions' })} />
-        <RailItem icon={PanelsTopLeft} label="Layouts" on={ui.leftTab === 'layout'} onClick={() => store.ui({ leftTab: 'layout' })} />
-        <RailItem icon={LayoutTemplate} label="Templates" on={ui.leftTab === 'templates'} onClick={() => store.ui({ leftTab: 'templates' })} />
-        <RailItem icon={Palette} label="Brand Kit" on={ui.rightTab === 'style'} onClick={() => store.ui({ rightTab: 'style' })} />
-        <RailItem icon={AudioLines} label="Audio" on={ui.rightTab === 'audio'} onClick={() => store.ui({ rightTab: 'audio' })} />
-        <div className="rail-spacer" />
-        <RailItem icon={HelpCircle} label="Help" on={help} onClick={() => setHelp(true)} />
-        <RailItem
-          icon={Settings2}
-          label="Settings"
-          on={false}
-          onClick={() => store.ui({ rightTab: 'export' })}
-        />
-      </nav>
-
-      <div className="main">
-        <header className="topbar">
-          <button
-            type="button"
-            className="icon-btn"
-            title="New project"
-            aria-label="New project"
-            onClick={newProject}
-          >
-            <ArrowLeft size={16} />
-          </button>
-          {editingName ? (
-            <input
-              className="name-input"
-              autoFocus
-              defaultValue={p.name}
-              aria-label="Project name"
-              onBlur={(e) => {
-                const v = e.target.value.trim() || 'untitled-clip'
-                store.update((d) => void (d.name = v))
-                setEditingName(false)
-              }}
-              onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-            />
-          ) : (
-            <button type="button" className="project-name" onClick={() => setEditingName(true)}>
-              {p.name}.mp4 <Pencil size={13} />
-            </button>
-          )}
-          <div className="topbar-spacer" />
-          <span className="saved">
-            <Cloud size={15} /> Saved locally {ago(ui.lastSaved, now)}
-          </span>
-          <span className="offline-pill" title="All processing happens in your browser">
-            <span className="dot" /> 100% offline
-          </span>
-          <button
-            type="button"
-            className="icon-btn"
-            title="Toggle theme (Shift+L)"
-            aria-label="Toggle theme"
-            onClick={() => store.ui({ theme: ui.theme === 'dark' ? 'light' : 'dark' })}
-          >
-            {ui.theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
-          <button type="button" className="btn outline" onClick={() => setHelp(true)}>
-            <FolderOpen size={15} /> Shortcuts
-          </button>
-          <ExportButton />
-        </header>
-
-        <div className="workspace">
-          <aside className="left card">
-            <div className="tabs">
-              {LEFT_TABS.map((t) => (
-                <button type="button" key={t.id} className={ui.leftTab === t.id ? 'on' : ''} onClick={() => store.ui({ leftTab: t.id })}>
-                  <t.icon size={14} /> {t.label}
-                </button>
-              ))}
+      {mobile ? (
+        <MobileShell openSettings={() => setSettings('ai')} onHelp={() => setHelp(true)} />
+      ) : (
+        <>
+          <nav className="rail" aria-label="Main">
+            <div className="logo" aria-label="Spiti">
+              <svg viewBox="0 0 32 32" width="34" height="34">
+                <rect width="32" height="32" rx="9" fill="currentColor" />
+                <path d="M9 21 L14 11 L18 18 L20.5 14 L24 21 Z" fill="var(--rail-bg)" />
+                <circle cx="21" cy="10" r="2" fill="var(--rail-bg)" />
+              </svg>
             </div>
-            {ui.leftTab === 'media' && <MediaPanel />}
-            {ui.leftTab === 'captions' && <CaptionsPanel />}
-            {ui.leftTab === 'layout' && <LayoutPanel />}
-            {ui.leftTab === 'templates' && <TemplatesPanel />}
-          </aside>
+            <RailItem icon={Sparkles} label="Auto clip" on={ui.leftTab === 'clips'} onClick={() => store.ui({ leftTab: 'clips' })} />
+            <RailItem icon={Clapperboard} label="Media" on={ui.leftTab === 'media'} onClick={() => store.ui({ leftTab: 'media' })} />
+            <RailItem icon={Captions} label="Captions" on={ui.leftTab === 'captions'} onClick={() => store.ui({ leftTab: 'captions' })} />
+            <RailItem icon={PanelsTopLeft} label="Layouts" on={ui.leftTab === 'layout'} onClick={() => store.ui({ leftTab: 'layout' })} />
+            <RailItem icon={LayoutTemplate} label="Templates" on={ui.leftTab === 'templates'} onClick={() => store.ui({ leftTab: 'templates' })} />
+            <RailItem icon={Palette} label="Brand Kit" on={ui.rightTab === 'style'} onClick={() => store.ui({ rightTab: 'style' })} />
+            <RailItem icon={AudioLines} label="Audio" on={ui.rightTab === 'audio'} onClick={() => store.ui({ rightTab: 'audio' })} />
+            <div className="rail-spacer" />
+            <RailItem icon={HelpCircle} label="Help" on={help} onClick={() => setHelp(true)} />
+            <RailItem icon={Settings2} label="Settings" on={!!settings} onClick={() => setSettings('ai')} />
+          </nav>
 
-          <Preview />
+          <div className="main">
+            <TopBar onHelp={() => setHelp(true)} />
+            <div className="workspace">
+              <aside className="left card">
+                <div className="tabs">
+                  {LEFT_TABS.map((t) => (
+                    <button type="button" key={t.id} className={ui.leftTab === t.id ? 'on' : ''} onClick={() => store.ui({ leftTab: t.id })}>
+                      <t.icon size={14} /> {t.label}
+                    </button>
+                  ))}
+                </div>
+                <LeftPanel tab={ui.leftTab} openSettings={() => setSettings('ai')} />
+              </aside>
 
-          <aside className="right card">
-            <div className="tabs">
-              {RIGHT_TABS.map((t) => (
-                <button type="button" key={t.id} className={ui.rightTab === t.id ? 'on' : ''} onClick={() => store.ui({ rightTab: t.id })}>
-                  <t.icon size={14} /> {t.label}
-                </button>
-              ))}
+              <Preview />
+
+              <aside className="right card">
+                <div className="tabs">
+                  {RIGHT_TABS.map((t) => (
+                    <button type="button" key={t.id} className={ui.rightTab === t.id ? 'on' : ''} onClick={() => store.ui({ rightTab: t.id })}>
+                      <t.icon size={14} /> {t.label}
+                    </button>
+                  ))}
+                </div>
+                <Inspector />
+              </aside>
             </div>
-            <Inspector />
-          </aside>
-        </div>
 
-        <Timeline />
-      </div>
+            <Timeline />
+          </div>
+        </>
+      )}
 
       {dragging && (
         <div className="drop-overlay">
@@ -328,6 +277,136 @@ export default function App() {
       )}
       {ui.rightTab !== 'export' && <ExportProgress />}
       {help && <HelpModal onClose={() => setHelp(false)} />}
+      {settings && <SettingsModal initial={settings} onClose={() => setSettings(null)} />}
+    </div>
+  )
+}
+
+function useIsMobile() {
+  const q = '(max-width: 860px)'
+  const [m, setM] = useState(() => window.matchMedia?.(q).matches ?? false)
+  useEffect(() => {
+    const mq = window.matchMedia(q)
+    const on = () => setM(mq.matches)
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  return m
+}
+
+function LeftPanel({ tab, openSettings }: { tab: UiState['leftTab']; openSettings: () => void }) {
+  if (tab === 'clips') return <ClipsPanel onOpenSettings={openSettings} />
+  if (tab === 'media') return <MediaPanel />
+  if (tab === 'captions') return <CaptionsPanel />
+  if (tab === 'layout') return <LayoutPanel />
+  return <TemplatesPanel />
+}
+
+function TopBar({ onHelp, compact }: { onHelp: () => void; compact?: boolean }) {
+  const ui = useUi()
+  const p = useProject()
+  const [editingName, setEditingName] = useState(false)
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const i = setInterval(() => setNow(Date.now()), 10_000)
+    return () => clearInterval(i)
+  }, [])
+  return (
+    <header className="topbar">
+      {!compact && (
+        <button type="button" className="icon-btn" title="New project" aria-label="New project" onClick={newProject}>
+          <ArrowLeft size={16} />
+        </button>
+      )}
+      {editingName ? (
+        <input
+          className="name-input"
+          autoFocus
+          defaultValue={p.name}
+          aria-label="Project name"
+          onBlur={(e) => {
+            const v = e.target.value.trim() || 'untitled-clip'
+            store.update((d) => void (d.name = v))
+            setEditingName(false)
+          }}
+          onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+        />
+      ) : (
+        <button type="button" className="project-name" onClick={() => setEditingName(true)}>
+          <span>{p.name}.mp4</span> <Pencil size={13} />
+        </button>
+      )}
+      <div className="topbar-spacer" />
+      {!compact && (
+        <>
+          <span className="saved">
+            <Cloud size={15} /> Saved locally {ago(ui.lastSaved, now)}
+          </span>
+          <span className="offline-pill" title="Editing, captions and local AI run on your device">
+            <span className="dot" /> On-device
+          </span>
+        </>
+      )}
+      <button
+        type="button"
+        className="icon-btn"
+        title="Toggle theme (Shift+L)"
+        aria-label="Toggle theme"
+        onClick={() => store.ui({ theme: ui.theme === 'dark' ? 'light' : 'dark' })}
+      >
+        {ui.theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+      </button>
+      {!compact && (
+        <button type="button" className="btn outline" onClick={onHelp}>
+          <FolderOpen size={15} /> Shortcuts
+        </button>
+      )}
+      <ExportButton />
+    </header>
+  )
+}
+
+const MOBILE_TABS: { id: string; label: string; icon: typeof Film; left?: UiState['leftTab']; right?: UiState['rightTab'] }[] = [
+  { id: 'clips', label: 'Auto clip', icon: Sparkles, left: 'clips' },
+  { id: 'media', label: 'Media', icon: Film, left: 'media' },
+  { id: 'timeline', label: 'Timeline', icon: Scissors },
+  { id: 'captions', label: 'Captions', icon: Type, left: 'captions' },
+  { id: 'layout', label: 'Layout', icon: PanelsTopLeft, left: 'layout' },
+  { id: 'frame', label: 'Frame', icon: Crop, right: 'frame' },
+  { id: 'templates', label: 'Templates', icon: LayoutTemplate, left: 'templates' },
+  { id: 'style', label: 'Style', icon: Palette, right: 'style' },
+  { id: 'audio', label: 'Audio', icon: AudioLines, right: 'audio' },
+  { id: 'export', label: 'Export', icon: Download, right: 'export' },
+]
+
+/** Phone layout: preview on top, a scrollable tab strip, and one panel at a time. */
+function MobileShell({ openSettings, onHelp }: { openSettings: () => void; onHelp: () => void }) {
+  const ui = useUi()
+  const tab = MOBILE_TABS.find((t) => t.id === ui.mobileTab) ?? MOBILE_TABS[0]
+  return (
+    <div className="mobile">
+      <TopBar onHelp={onHelp} compact />
+      <Preview />
+      <nav className="mobile-tabs" aria-label="Panels">
+        {MOBILE_TABS.map((t) => (
+          <button
+            type="button"
+            key={t.id}
+            className={t.id === tab.id ? 'on' : ''}
+            onClick={() => store.ui({ mobileTab: t.id, ...(t.left ? { leftTab: t.left } : {}), ...(t.right ? { rightTab: t.right } : {}) })}
+          >
+            <t.icon size={15} />
+            <span>{t.label}</span>
+          </button>
+        ))}
+        <button type="button" onClick={openSettings}>
+          <Settings2 size={15} />
+          <span>Settings</span>
+        </button>
+      </nav>
+      <div className={`mobile-panel card ${tab.id === 'timeline' ? 'is-timeline' : ''}`}>
+        {tab.id === 'timeline' ? <Timeline /> : tab.left ? <LeftPanel tab={tab.left} openSettings={openSettings} /> : <Inspector />}
+      </div>
     </div>
   )
 }

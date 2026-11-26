@@ -27,6 +27,23 @@ contextBridge.exposeInMainWorld('desktop', {
   },
   reveal: (path) => ipcRenderer.invoke('shell:reveal', path),
   setTitlebarTheme: (dark) => ipcRenderer.invoke('titlebar:theme', dark),
+  linkEnsure: () => ipcRenderer.invoke('link:ensure'),
+  linkInfo: (url) => ipcRenderer.invoke('link:info', url),
+  linkDownload: (opts) => ipcRenderer.invoke('link:download', opts),
+  linkWait: (id) => ipcRenderer.invoke('link:wait', id),
+  linkStop: (id) => ipcRenderer.invoke('link:stop', id),
+  onLinkProgress: (cb) => {
+    const h = (_e, p) => cb(p)
+    ipcRenderer.on('link:progress', h)
+    return () => ipcRenderer.removeListener('link:progress', h)
+  },
+  mediaUrl: (path) => ipcRenderer.invoke('media:url', path),
+  openMediaDialog: () => ipcRenderer.invoke('dialog:openMedia'),
+  folderDialog: () => ipcRenderer.invoke('dialog:folder'),
+  audioPcm: (opts) => ipcRenderer.invoke('audio:pcm', opts),
+  request: (req) => ipcRenderer.invoke('net:request', req),
+  secretGet: (name) => ipcRenderer.invoke('secret:get', name),
+  secretSet: (name, value) => ipcRenderer.invoke('secret:set', name, value),
   onMenu: (cb) => {
     const h = (_e, cmd) => cb(cmd)
     ipcRenderer.on('menu', h)

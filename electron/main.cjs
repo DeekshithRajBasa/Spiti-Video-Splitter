@@ -8,8 +8,9 @@ const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
 
+const features = require('./features.cjs')
+
 const isMac = process.platform === 'darwin'
-const isWin = process.platform === 'win32'
 const DEV_URL = process.env.VITE_DEV_SERVER_URL
 
 /* ---------------- ffmpeg ---------------- */
@@ -145,12 +146,13 @@ function stopDecoder(id) {
 // The renderer may only write to paths the user picked in a save dialog or to our temp dir.
 
 const writable = new Set()
+const writableDirs = new Set()
 const handles = new Map()
 const tmpDir = path.join(os.tmpdir(), 'spiti-video-splitter')
 
 function allowed(file) {
   const abs = path.resolve(file)
-  return writable.has(abs) || abs.startsWith(tmpDir + path.sep)
+  return writable.has(abs) || abs.startsWith(tmpDir + path.sep) || [...writableDirs].some((d) => abs.startsWith(d + path.sep))
 }
 
 /* ---------------- final mix + mux ---------------- */
@@ -371,8 +373,14 @@ function registerIpc() {
   })
 }
 
+// Must run before the app is ready.
+features.registerSchemes()
+// Multi-threaded WebAssembly makes on-device Whisper several times faster.
+app.commandLine.appendSwitch('enable-features', 'SharedArrayBuffer')
+
 app.whenReady().then(() => {
   registerIpc()
+  features.register({ ffmpeg: FFMPEG, getWindow: () => win, allowWriteDir: (d) => writableDirs.add(path.resolve(d)) })
   buildMenu()
   createWindow()
   app.on('activate', () => BrowserWindow.getAllWindows().length === 0 && createWindow())
@@ -385,5 +393,3 @@ app.on('window-all-closed', () => {
 
 app.on('will-quit', () => fs.rmSync(tmpDir, { recursive: true, force: true }))
 
-// Keep `isWin` referenced for future Windows-specific tweaks without lint noise.
-void isWin

@@ -1,5 +1,7 @@
 import { store } from '../store'
-import { desktop } from './desktop'
+import { applyClip, slug } from './ai/clips'
+import type { ClipSuggestion } from './ai/state'
+import { desktop, desktopInfo } from './desktop'
 import { engine } from './engine'
 import { canFastExport, ExportCancelled, fastExport } from './fastExport'
 import { download } from './media'
@@ -64,4 +66,44 @@ export async function saveSnapshot() {
     const path = await desktop.saveDialog(`${p.name}-frame.png`, 'png')
     if (path) await writeBlob(path, b)
   } else download(b, `${p.name}-frame.png`)
+}
+
+/** Export each suggested clip to its own file. Desktop asks for a folder once. */
+export async function exportClipsBatch(clips: ClipSuggestion[], onEach: (i: number, total: number) => void) {
+  if (running || !clips.length) return
+  running = true
+  try {
+    let folder: string | null = null
+    if (desktop) {
+      folder = await desktop.folderDialog()
+      if (!folder) return
+    }
+    const sep = desktopInfo?.platform === 'win32' ? '\\' : '/'
+    for (let i = 0; i < clips.length; i++) {
+      onEach(i, clips.length)
+      applyClip(clips[i])
+      await new Promise((r) => setTimeout(r, 300))
+      const p = store.get().project
+      const name = `${String(i + 1).padStart(2, '0')}-${slug(clips[i].title) || 'clip'}`
+      if (desktop && p.export.mode === 'fast' && canFastExport().ok) {
+        const path = `${folder}${sep}${name}.mp4`
+        store.ui({ exporting: { progress: 0, status: `Clip ${i + 1}/${clips.length}` } })
+        await fastExport(path, (progress, status) => store.ui({ exporting: { progress, status: `Clip ${i + 1}/${clips.length} · ${status}` } }))
+        store.ui({ lastExport: path })
+      } else {
+        const r = await engine.export()
+        if (!r) return
+        if (desktop) {
+          const path = `${folder}${sep}${name}.${r.ext}`
+          await writeBlob(path, r.blob)
+          store.ui({ lastExport: path })
+        } else download(r.blob, `${name}.${r.ext}`)
+      }
+    }
+  } catch (err) {
+    if (!(err instanceof ExportCancelled)) alert(`Export failed: ${(err as Error).message}`)
+  } finally {
+    store.ui({ exporting: null })
+    running = false
+  }
 }

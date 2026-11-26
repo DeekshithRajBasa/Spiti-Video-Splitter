@@ -166,7 +166,7 @@ class Engine {
   async loadBuffer(m: MediaItem) {
     if (this.buffers.has(m.id)) return
     try {
-      const data = await m.file.arrayBuffer()
+      const data = m.file ? await m.file.arrayBuffer() : await (await fetch(m.url)).arrayBuffer()
       const ctx = this.actx ?? new OfflineAudioContext(1, 1, 44100)
       const buf = await ctx.decodeAudioData(data)
       this.buffers.set(m.id, buf)

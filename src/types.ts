@@ -5,7 +5,8 @@ export interface MediaItem {
   name: string
   kind: MediaKind
   url: string
-  file: File
+  /** Browser File for imported files; absent for files streamed from disk (desktop). */
+  file?: File
   /** Absolute path on disk (desktop app only). */
   path: string | null
   duration: number
@@ -64,6 +65,8 @@ export interface Cue {
   start: number
   end: number
   text: string
+  /** Per-word [start, end] from speech recognition, when the word count still matches the text. */
+  words?: [number, number][]
 }
 
 export interface CaptionStyle {

@@ -1,7 +1,7 @@
 import { uid } from '../defaults'
 import { store } from '../store'
 import type { MediaItem, MediaKind } from '../types'
-import { desktop } from './desktop'
+import { desktop, type DiskFile } from './desktop'
 
 function kindOf(f: File): MediaKind | null {
   if (f.type.startsWith('video/') || /\.(mp4|mov|mkv|webm|avi|m4v)$/i.test(f.name)) return 'video'
@@ -61,7 +61,7 @@ async function makeThumbs(url: string, duration: number, count = 12): Promise<st
   return out
 }
 
-async function makeWaveform(file: File, bars = 400): Promise<number[]> {
+async function makeWaveform(file: Blob, bars = 400): Promise<number[]> {
   if (file.size > 150 * 1024 * 1024) return []
   const buf = await file.arrayBuffer()
   const ctx = new OfflineAudioContext(1, 1, 44100)
@@ -97,6 +97,24 @@ export async function importFile(file: File): Promise<MediaItem | null> {
       .then((waveform) => store.patchMedia(item.id, { waveform }))
       .catch(() => {})
   }
+  return item
+}
+
+/** Import a file the desktop app streams from disk (downloads, very large files). */
+export async function importDiskFile(d: DiskFile): Promise<MediaItem | null> {
+  const kind = kindOf({ name: d.name, type: '' } as File)
+  if (!kind) return null
+  const meta = await loadMeta(d.url, kind)
+  const item: MediaItem = { id: uid(), name: d.name, kind, url: d.url, path: d.file, thumbs: [], waveform: [], ...meta }
+  if (kind === 'image') item.thumbs = [d.url]
+  store.addMedia(item)
+  if (kind === 'video') makeThumbs(d.url, meta.duration).then((thumbs) => store.patchMedia(item.id, { thumbs })).catch(() => {})
+  if (kind === 'audio' && d.size < 150 * 1024 * 1024)
+    fetch(d.url)
+      .then((r) => r.blob())
+      .then((b) => makeWaveform(b as File))
+      .then((waveform) => store.patchMedia(item.id, { waveform }))
+      .catch(() => {})
   return item
 }
 

@@ -31,7 +31,8 @@ function srcSize(s: Drawable): [number, number] {
 
 function ready(s: Drawable | null): s is Drawable {
   if (!s) return false
-  if (s instanceof HTMLVideoElement) return s.readyState >= 2 && s.videoWidth > 0
+  // While seeking, readyState drops but the last frame is still drawable; don't flash a placeholder.
+  if (s instanceof HTMLVideoElement) return s.videoWidth > 0 && (s.readyState >= 2 || s.seeking)
   if (s instanceof HTMLImageElement) return s.complete && s.naturalWidth > 0
   return s.width > 0
 }

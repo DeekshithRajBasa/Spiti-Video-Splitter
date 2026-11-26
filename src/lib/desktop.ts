@@ -26,6 +26,48 @@ export interface DesktopBridge {
   reveal(path: string): Promise<void>
   setTitlebarTheme(dark: boolean): Promise<void>
   onMenu(cb: (cmd: string) => void): () => void
+  linkEnsure(): Promise<string>
+  linkInfo(url: string): Promise<LinkInfo>
+  linkDownload(o: { url: string; maxHeight: number; start?: number; end?: number; live?: 'now' | 'start'; maxMinutes?: number }): Promise<number>
+  linkWait(id: number): Promise<DiskFile>
+  linkStop(id: number): Promise<boolean>
+  onLinkProgress(cb: (p: LinkProgress) => void): () => void
+  mediaUrl(path: string): Promise<string>
+  openMediaDialog(): Promise<DiskFile[]>
+  folderDialog(): Promise<string | null>
+  audioPcm(o: { file: string; start: number; duration?: number }): Promise<Uint8Array>
+  request(r: { url: string; method?: string; headers?: Record<string, string>; body?: string; timeoutMs?: number }): Promise<{ status: number; ok: boolean; text: string }>
+  secretGet(name: string): Promise<string>
+  secretSet(name: string, value: string): Promise<void>
+}
+
+export interface DiskFile {
+  file: string
+  url: string
+  name: string
+  size: number
+}
+
+export interface LinkInfo {
+  title: string
+  duration: number
+  isLive: boolean
+  wasLive: boolean
+  site: string
+  uploader: string
+  thumbnail: string
+  url: string
+  height: number
+}
+
+export interface LinkProgress {
+  id: number
+  status: 'installing' | 'downloading' | 'recording' | 'processing'
+  percent?: number | null
+  speed?: string
+  eta?: string
+  downloaded?: string
+  elapsed?: number
 }
 
 export const desktop: DesktopBridge | undefined = (window as unknown as { desktop?: DesktopBridge }).desktop

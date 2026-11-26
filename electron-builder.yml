@@ -8,6 +8,7 @@ files:
   - dist/**
   - electron/main.cjs
   - electron/preload.cjs
+  - electron/features.cjs
   - build/icon.png
   - package.json
   # ffmpeg-static only needs its binary at runtime, not its download helpers.

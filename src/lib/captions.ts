@@ -101,6 +101,10 @@ export function cueWords(cue: Cue): Word[] {
     }
     return { text, style }
   })
+  // Real word timings from speech recognition, as long as the text wasn't re-worded.
+  if (cue.words && cue.words.length === words.length) {
+    return words.map((w, i) => ({ ...w, start: cue.words![i][0], end: Math.max(cue.words![i][1], cue.words![i][0] + 0.05) }))
+  }
   const weights = words.map((w) => Math.max(2, w.text.length) + 1)
   const total = weights.reduce((a, b) => a + b, 0)
   const dur = Math.max(0.05, cue.end - cue.start)
